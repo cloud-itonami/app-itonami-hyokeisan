@@ -34,8 +34,13 @@ escaped_expected = ''.join(frame('1') + frame(str(c + 1)) + frame(v)
 grid_object = json.dumps({**{'Sheet' + str(i): [[str(i)]] for i in range(40)},
                           '予算!': [['雪', '😀']]}, ensure_ascii=False, separators=(',', ':'))
 object_expected = frame('1') + frame('1') + frame('雪') + frame('1') + frame('2') + frame('😀')
+object_titles = ''.join(frame('Sheet' + str(i)) for i in range(40)) + frame('予算!')
 bad_objects = ['{"A":[["a"]],"\\u0041":[["b"]]}', '{"A":[["a"]],}',
                '{"A":[["a"]],"B":[[null]]}', '{"A":[["a"]]} trailing', '{"A":null}']
+match_grid = '{"A":[["one"]],"B":[]}'
+matching = [frame('A') + frame('B'), frame('B') + frame('A')]
+mismatching = [frame('A'), frame('A') + frame('B') + frame('C'),
+               frame('A') + frame('A'), frame('A') + '2:B']
 expected = ''.join(frame(str(r + 1)) + frame(str(c + 1)) + frame(v)
                    for r, row in enumerate(rows) for c, v in enumerate(row) if v)
 literal = lambda x: json.dumps(x, ensure_ascii=False)
@@ -45,12 +50,19 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(option-some?-of [:option :string] v) (string=? (option-value-of [:option :string] v "") ' + literal(expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-cells ' + literal(escaped) + ') "bad") ' + literal(escaped_expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-find ' + literal(grid_object) + ' "予算!") "bad") ' + literal(object_expected) + ') ' + \
+    '(legacy-grid-match-titles ' + literal(grid_object) + ' ' + literal(object_titles) + ') ' + \
     '(not (option-some?-of [:option :string] (legacy-grid-find ' + literal(grid_object) + ' "missing"))) ' + \
+    ' '.join('(legacy-grid-match-titles ' + literal(match_grid) + ' ' + literal(item) + ')' for item in matching) + ' ' + \
+    ' '.join('(not (legacy-grid-match-titles ' + literal(match_grid) + ' ' + literal(item) + '))' for item in mismatching) + ' ' + \
+    '(legacy-grid-match-titles "{}" "") (not (legacy-grid-match-titles "{}" "1:A")) ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-grid-find ' + literal(item) + ' "A")))' for item in bad_objects) + ' ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-grid-cells ' + literal(item) + ')))' for item in bad) + ') 0 1)))\n'
 anchor = '(string-concat acc (wf-cell row col value))'
 if source.count(anchor) != 1: raise ValueError('coordinate mutation anchor changed')
-cases = [('grid', source, 0), ('coordinate-mutant', source.replace(anchor, '(string-concat acc (wf-cell col row value))', 1), 1)]
+count_anchor = '(string=? (string-from-i64 count) expected)'
+if source.count(count_anchor) != 1: raise ValueError('title-count mutation anchor changed')
+cases = [('grid', source, 0), ('coordinate-mutant', source.replace(anchor, '(string-concat acc (wf-cell col row value))', 1), 1),
+         ('title-count-mutant', source.replace(count_anchor, 'true', 1), 1)]
 
 def load(name, path):
     spec = importlib.util.spec_from_file_location(name, path)

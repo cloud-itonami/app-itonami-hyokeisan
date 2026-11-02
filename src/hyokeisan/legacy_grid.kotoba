@@ -1,5 +1,5 @@
 (ns hyokeisan.legacy-grid
-  (:export [legacy-grid-cells legacy-grid-find])
+  (:export [legacy-grid-cells legacy-grid-find legacy-grid-match-titles])
   (:require [hyokeisan.json-string :as js]
             [hyokeisan.workbook :as workbook]))
 
@@ -82,12 +82,13 @@
           (if (string=? (workbook/wf-text seen f) name) true
             (recur (workbook/wf-end f))))))))
 (defn lg-object [s :string pos :i64 n :i64 wanted :string seen :string
-                 found :bool result :string first :bool] [:option :string]
+                 found :bool result :string first :bool count :i64 count-mode :bool] [:option :string]
   (let [p (lg-space s pos n)]
     (if (>= p n) (option-none-of [:option :string])
       (let [c (string-code-point-at s p)]
-        (cond (= c 125) (if (and first found (= (lg-space s (+ p 1) n) n))
-                          (option-some-of [:option :string] result) (option-none-of [:option :string]))
+        (cond (= c 125) (if (and first (= (lg-space s (+ p 1) n) n) (or count-mode found))
+                          (option-some-of [:option :string] (if count-mode (string-from-i64 count) result))
+                          (option-none-of [:option :string]))
               (not= c 34) (option-none-of [:option :string])
               :else (let [end (lg-string-end s p n)]
                 (if (< end 0) (option-none-of [:option :string])
@@ -106,13 +107,32 @@
                                     (if (or (not (option-some?-of [:option :string] cells)) (>= q n)) (option-none-of [:option :string])
                                       (let [hit (string=? key wanted) more (string-code-point-at s q)
                                             value (if hit (option-value-of [:option :string] cells "") result)]
-                                        (cond (= more 125) (if (and (or found hit) (= (lg-space s (+ q 1) n) n))
-                                                             (option-some-of [:option :string] value) (option-none-of [:option :string]))
+                                        (cond (= more 125) (if (and (or count-mode found hit) (= (lg-space s (+ q 1) n) n))
+                                                             (option-some-of [:option :string] (if count-mode (string-from-i64 (+ count 1)) value)) (option-none-of [:option :string]))
                                               (= more 44) (lg-object s (+ q 1) n wanted
-                                                            (string-concat seen (workbook/wf-frame key)) (or found hit) value false)
+                                                            (string-concat seen (workbook/wf-frame key)) (or found hit) value false (+ count 1) count-mode)
                                               :else (option-none-of [:option :string]))))))))))))))))))))
 (defn legacy-grid-find [s :string wanted :string] [:option :string]
   (let [n (string-byte-length s) p (lg-space s 0 n)]
     (if (or (> n 35000) (>= p n)) (option-none-of [:option :string])
-      (if (= (string-code-point-at s p) 123) (lg-object s (+ p 1) n wanted "" false "" true)
+      (if (= (string-code-point-at s p) 123) (lg-object s (+ p 1) n wanted "" false "" true 0 false)
         (option-none-of [:option :string])))))
+
+;; Metadata titles arrive as a sequence of canonical length-prefixed UTF-8
+;; strings. The metadata parser is responsible for constructing this input;
+;; this function proves set equality, but not export origin or revision.
+(defn lg-match-from [grid :string titles :string pos :i64 seen :string count :i64 expected :string] :bool
+  (if (= pos (string-byte-length titles)) (string=? (string-from-i64 count) expected)
+    (let [f (workbook/wf-read titles pos)]
+      (if (< (workbook/wf-start f) 0) false
+        (let [title (workbook/wf-text titles f)]
+          (if (or (> (string-byte-length title) 1024) (lg-seen? seen title)
+                  (not (option-some?-of [:option :string] (legacy-grid-find grid title)))) false
+            (lg-match-from grid titles (workbook/wf-end f) (string-concat seen (workbook/wf-frame title)) (+ count 1) expected)))))))
+(defn legacy-grid-match-titles [grid :string titles :string] :bool
+  (let [n (string-byte-length grid) p (lg-space grid 0 n)]
+    (if (or (> n 35000) (> (string-byte-length titles) 35000) (>= p n)) false
+      (if (not (= (string-code-point-at grid p) 123)) false
+        (let [count (lg-object grid (+ p 1) n "" "" false "" true 0 true)]
+          (if (not (option-some?-of [:option :string] count)) false
+            (lg-match-from grid titles 0 "" 0 (option-value-of [:option :string] count ""))))))))
