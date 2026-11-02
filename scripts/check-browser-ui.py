@@ -60,7 +60,7 @@ try:
     wait("document.getElementById('status').textContent.includes('入力が長すぎます')", 'oversized input')
     if evaluate("document.querySelector('[data-k=c0]').value.length") != 129 or evaluate("document.getElementById('retry-save').hidden"): raise ValueError('oversized input discarded')
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('oversized input clobbered storage')
-    input_('c0', '6'); wait("document.getElementById('retry-save').hidden && localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False), 'correct oversized input')
+    input_('c0', '6'); wait("document.getElementById('retry-save').hidden && localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False) + " && document.getElementById('status').textContent === '保存しました'", 'correct oversized input')
     pipe.call('Page.reload', {}, session); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR')
     # A downloaded HS1 can be explicitly reviewed and restored; invalid input
     # and storage failure must never replace the current document.
