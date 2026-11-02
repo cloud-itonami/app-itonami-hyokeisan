@@ -16,6 +16,11 @@ threading.Thread(target=server.serve_forever,daemon=True).start();pipe=browser.P
 base=f'http://127.0.0.1:{server.server_port}/';key='itonami.hyokeisan.candidate.hs1'
 meta='[{"sheetId":0,"title":"A","color":"blue"},{"sheetId":"b","title":"B"}]'
 grid='{"B":[["x","=12/-3"],["","=9/2"]],"A":[["雪",""],["=A1+2","3"]]}'
+hostile_title='<img src=x onerror=alert(1)>'
+hostile_meta=json.dumps([{'sheetId':'safe','title':hostile_title}],separators=(',',':'))
+hostile_grid=json.dumps({hostile_title:[['=1+2']]},separators=(',',':'))
+formula_meta='[{"sheetId":0,"title":"A"}]'
+formula_grid=json.dumps({'A':[['=1+2'] for _ in range(23)]},separators=(',',':'))
 edn=lambda value:json.dumps(value,ensure_ascii=False)
 attrs={':sheet/type':[edn('Spreadsheet')],':sheet/id':[edn('sheet:book:demo')],':sheet/slug':[edn('demo')],
        ':sheet/title':[edn('予算')],':sheet/revision':['7'],':sheet/sheetsJson':[edn(meta)],
@@ -46,7 +51,7 @@ valid_attrs=dict(wide_attrs);valid_attrs[':sheet/gridJson']=[edn(valid_grid)]
 invalid_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':invalid_attrs},ensure_ascii=False,separators=(',',':'))
 valid_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':valid_attrs},ensure_ascii=False,separators=(',',':'))
 files={}
-for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('invalid-pull',invalid_pull),('valid-pull',valid_pull),('near-pull',near_pull),('over-pull',over_pull)]:
+for name,value in [('sheets',meta),('grid',grid),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-meta',formula_meta),('formula-grid',formula_grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('invalid-pull',invalid_pull),('valid-pull',valid_pull),('near-pull',near_pull),('over-pull',over_pull)]:
  files[name]=out/(name+'.json');files[name].write_text(value,encoding='utf-8')
 f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
@@ -100,12 +105,6 @@ try:
  def preview():
   ev("document.getElementById('legacy-preview').click()")
   wait("document.getElementById('backup-dialog').open",'preview')
- def confirm_failure(restore):
-  ev("document.getElementById('status').textContent='確認待ち';document.getElementById('backup-confirm').click()")
-  wait("document.getElementById('status').textContent.includes('復元できませんでした')",'failed save')
-  if stored()!=baseline:raise ValueError('failed save changed original')
-  ev('Storage.prototype.setItem=window.originalSetter')
-  if restore and not ev("Object.keys(localStorage).some(k=>k.startsWith("+json.dumps(key+'.preimport.')+")&&localStorage.getItem(k)==="+json.dumps(baseline,ensure_ascii=False)+")"):raise ValueError('backup missing')
  wait("document.querySelector('[data-k=c0]')!==null",'initial')
  ev("(()=>{let e=document.querySelector('[data-k=c0]');e.value='既存';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
  wait("document.getElementById('status').textContent==='保存しました'",'baseline');baseline=stored()
@@ -122,6 +121,30 @@ try:
  ev("window.Worker=window.raceWorker;document.getElementById('status').textContent='待機';(()=>{let e=document.querySelector('[data-k=c0]');e.value='既存';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
  wait("document.getElementById('status').textContent==='保存しました'",'restore after preview race')
  if stored()!=baseline:raise ValueError('preview race baseline not restored')
+ # An audit failure must reject the import rather than open a preview.
+ ev("window.auditWorker=window.Worker;window.Worker=class extends window.auditWorker {postMessage(msg){if(msg.args[0]==='formula-audit'){this.terminate();queueMicrotask(()=>this.onerror(new Event('error')))}else super.postMessage(msg)}};document.getElementById('status').textContent='';document.getElementById('legacy-preview').click()")
+ wait("document.getElementById('status').textContent.includes('旧データを読み込めません')",'audit failure refused')
+ if stored()!=baseline or ev("document.getElementById('backup-dialog').open"):raise ValueError('audit failure allowed import')
+ ev('window.Worker=window.auditWorker')
+ # The audit renders untrusted names as text, and caps its displayed details.
+ choose('#legacy-sheets',files['hostile-meta']);choose('#legacy-grid',files['hostile-grid']);preview()
+ if not ev("document.getElementById('backup-label').textContent.includes('<img src=x')") or ev("document.querySelector('#backup-label img')!==null"):raise ValueError('hostile audit title rendered as markup')
+ ev("document.getElementById('backup-cancel').click()")
+ if stored()!=baseline:raise ValueError('hostile preview changed saved state')
+ choose('#legacy-sheets',files['formula-meta']);choose('#legacy-grid',files['formula-grid']);preview()
+ if not ev("['数式 23 件','先頭 20 件','ほか 3 件','\"A\" (\"n:0\") A20'].every(v=>document.getElementById('backup-label').textContent.includes(v))") or ev("document.getElementById('backup-label').textContent.includes('\"A\" (\"n:0\") A21')"):raise ValueError('formula audit bound mismatch')
+ ev("document.getElementById('backup-cancel').click()")
+ if stored()!=baseline:raise ValueError('bounded preview changed saved state')
+ choose('#legacy-sheets',files['sheets']);choose('#legacy-grid',files['grid'])
+ # Abort either write in the same IDB transaction and verify both records roll back.
+ for method in ('add','put'):
+  preview();before=record('current');backup='backup:'+str(before['revision']).zfill(16)
+  if record(backup) is not None:raise ValueError('fault fixture backup already exists')
+  ev("window.__idbOriginal=IDBObjectStore.prototype."+method+";IDBObjectStore.prototype."+method+"=function(...a){throw Error('synthetic write failure')}")
+  ev("document.getElementById('status').textContent='待機';document.getElementById('backup-confirm').click()")
+  wait("document.getElementById('status').textContent.includes('復元できませんでした')",method+' rollback')
+  ev("IDBObjectStore.prototype."+method+"=window.__idbOriginal")
+  if record('current')!=before or record(backup) is not None:raise ValueError(method+' failure did not roll back both records')
  preview()
  ev("document.getElementById('backup-confirm').click()");wait("document.getElementById('status').textContent.includes('復元しました')",'import')
  assert stored()==expected
@@ -156,7 +179,7 @@ try:
  ev('window.__old=true');pipe.call('Page.reload',{},session)
  wait("window.__old!==true && document.querySelector('[data-k=c0]')?.value==='1'",'near-limit reload')
  assert stored()==near_expected
- report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','near-limit-pull-restore-reload'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
+ report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','near-limit-pull-restore-reload'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
  (out/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(report['status'])
 finally:
  pipe.close();server.shutdown();server.server_close()
