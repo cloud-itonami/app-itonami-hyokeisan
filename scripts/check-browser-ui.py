@@ -56,6 +56,8 @@ try:
     input_('c1', '4'); shown('c1', '4')
     input_('c4', '=A1+B1'); shown('c4', '7')
     input_('c2', '=SUM(A1:B1)'); shown('c2', '7')
+    input_('c5', '=A1-B1'); shown('c5', '-1')
+    input_('c6', '=-3*B1'); shown('c6', '-12')
     input_('c0', '6'); shown('c4', '10'); shown('c2', '10')
     input_('c3', '=D1'); shown('c3', '#ERROR')
     saved = evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
@@ -79,7 +81,7 @@ try:
     if evaluate("document.querySelector('[data-k=c0]').value.length") != 129 or evaluate("document.getElementById('retry-save').hidden"): raise ValueError('oversized input discarded')
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('oversized input clobbered storage')
     input_('c0', '6'); wait("document.getElementById('retry-save').hidden && localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False) + " && document.getElementById('status').textContent === '保存しました'", 'correct oversized input')
-    reload_page(); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR')
+    reload_page(); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR'); shown('c5', '2'); shown('c6', '-12')
     # A downloaded HS1 can be explicitly reviewed and restored; invalid input
     # and storage failure must never replace the current document.
     download = out / 'downloads'
@@ -250,7 +252,7 @@ try:
     requests = [e['params']['request']['url'] for e in pipe.events if e.get('method') == 'Network.requestWillBeSent']
     if any(u.split('?', 1)[0].endswith('/favicon.ico') for u in requests): raise ValueError('unversioned favicon request')
     if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
-    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-both-write-failures-conflict','grid','addition','sum','recalculate','cycle','save-reload','synthetic-composition-with-concurrent-redraw','oversized-refusal','concurrent-tab-refusal','worker-timeout-retry','hidden-timeout-retry','worker-interruption-retry','storage-failure-retry','multiple-unsaved-fields','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
+    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-both-write-failures-conflict','grid','addition','subtraction-multiplication-reload','sum','recalculate','cycle','save-reload','synthetic-composition-with-concurrent-redraw','oversized-refusal','concurrent-tab-refusal','worker-timeout-retry','hidden-timeout-retry','worker-interruption-retry','storage-failure-retry','multiple-unsaved-fields','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
     print('PASS_HYOKEISAN_BROWSER_UI grid, calculation, save and refusal')
 finally:
     pipe.close(); server.shutdown(); server.server_close()

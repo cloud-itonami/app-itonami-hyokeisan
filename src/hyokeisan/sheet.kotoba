@@ -1,6 +1,6 @@
 (ns hyokeisan.sheet (:export [main]))
 ;; Bounded local workbook candidate: 4x4 cells, text, signed integers,
-;; =A1 references, =A1+B1 addition and =SUM(A1:B2). Unrecognized or cyclic
+;; =A1 references, binary +, - or * and =SUM(A1:B2). Unrecognized or cyclic
 ;; formulas produce an error; no host operation or external format is implied.
 (defn dget [d :document k :keyword] :document
   (option-value-of [:option :document] (document-get d k) (document-null)))
@@ -51,6 +51,24 @@
           (let [next (+ total (option-value-of [:option :i64] v 0))]
             (if (or (< next -1000000000) (> next 1000000000)) (option-none-of [:option :i64])
               (sum-range s r (+ c 1) r0 c0 r1 c1 seen next))))))))
+;; A binary operator must follow the first token: its leading minus is a sign.
+;; Results are bounded before they can be used as operands by another cell.
+(defn binary-minus-index [expr :string] :i64
+  (let [n (string-byte-length expr) p (string-index-of expr "-")]
+    (if (not= p 0) p
+      (if (<= n 1) -1
+        (let [next (string-index-of (string-substring expr 1 n) "-")]
+          (if (< next 0) -1 (+ next 1)))))))
+(defn eval-binary [s :document expr :string seen :i64 op :string pos :i64] [:option :i64]
+  (let [n (string-byte-length expr)]
+    (if (or (<= pos 0) (>= pos (- n 1))) (option-none-of [:option :i64])
+      (let [a (eval-token s (string-substring expr 0 pos) seen)
+            b (eval-token s (string-substring expr (+ pos 1) n) seen)
+            av (option-value-of [:option :i64] a 0) bv (option-value-of [:option :i64] b 0)
+            total (if (string=? op "-") (- av bv) (* av bv))]
+        (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
+                 (>= total -1000000000) (<= total 1000000000))
+          (option-some-of [:option :i64] total) (option-none-of [:option :i64]))))))
 (defn eval-form [s :document formula :string seen :i64] [:option :i64]
   (let [n (string-byte-length formula)]
     (if (and (= n 11) (string=? (string-substring formula 0 5) "=SUM(")
@@ -60,7 +78,11 @@
           (option-none-of [:option :i64])
           (sum-range s (quot a 4) (rem a 4) (quot a 4) (rem a 4) (quot b 4) (rem b 4) seen 0)))
       (let [expr (string-substring formula 1 n) plus (string-index-of expr "+")]
-        (if (< plus 0) (eval-token s expr seen)
+        (if (< plus 0)
+          (let [times (string-index-of expr "*") minus (binary-minus-index expr)]
+            (cond (>= times 0) (eval-binary s expr seen "*" times)
+                  (>= minus 0) (eval-binary s expr seen "-" minus)
+                  :else (eval-token s expr seen)))
           (if (or (= plus 0) (= plus (- (string-byte-length expr) 1))) (option-none-of [:option :i64])
             (let [a (eval-token s (string-substring expr 0 plus) seen)
                   b (eval-token s (string-substring expr (+ plus 1) (string-byte-length expr)) seen)
@@ -106,10 +128,21 @@
 (defn test-sheet [] :i64
   (let [s (step (step (step (step (step (init) "c0" "input" "3") "c1" "input" "4") "c4" "input" "=A1+B1") "c5" "input" "=SUM(A1:B2)") "c2" "input" "=SUM(A1:B1)")
         cycle (step s "c0" "input" "=A1")
+        minus (step s "c6" "input" "=A1-B1")
+        times (step s "c7" "input" "=-3*B1")
+        bad (step s "c8" "input" "=A1*B1*C1")
+        signs (step s "c9" "input" "=-3--4")
+        overflow (step (step (init) "c0" "input" "999999") "c1" "input" "=A1*1001")
+        cyclic-product (step s "c10" "input" "=C3*2")
+        unicode-formula (step s "c11" "input" "=日本語")
         bytes (option-value-of [:option :string] (snap-encode s) "")
         restored (snap-decode bytes)]
     (if (and (string=? (shown s 4) "7") (string=? (shown s 2) "7") (string=? (shown s 5) "#ERROR")
              (string=? (shown cycle 0) "#ERROR") (string=? (shown s 0) "3")
+             (string=? (shown minus 6) "-1") (string=? (shown times 7) "-12")
+             (string=? (shown bad 8) "#ERROR") (string=? (shown signs 9) "1")
+             (string=? (shown overflow 1) "#ERROR") (string=? (shown cyclic-product 10) "#ERROR")
+             (string=? (shown unicode-formula 11) "#ERROR")
              (option-some?-of [:option :document] restored)
              (document-equal? s (option-value-of [:option :document] restored (document-null)))
              (not (option-some?-of [:option :document] (snap-decode (string-concat bytes "extra"))))) 0 1)))
