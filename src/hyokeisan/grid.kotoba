@@ -18,6 +18,50 @@
 (defn grid-read [grid :vector-i64 row :i64 col :i64] :i64
   (if (cell-valid? grid row col) (vector-at grid (+ (* row 4) col)) 0))
 
+;; Versioned host-independent state value: [magic version 16 signed cells].
+;; It is not a byte encoding or an I/O operation. Callers must persist it
+;; atomically and may use snapshot-valid? before attempting a restore.
+(defn snapshot-cells [grid :vector-i64 i :i64 acc :vector-i64] :vector-i64
+  (if (= i 16) acc
+    (snapshot-cells grid (+ i 1) (vector-conj acc (vector-at grid i)))))
+
+(defn grid-snapshot [grid :vector-i64] :vector-i64
+  (if (= (vector-count grid) 16) (snapshot-cells grid 0 [121381 1]) []))
+
+(defn snapshot-valid? [snapshot :vector-i64] :bool
+  (if (= (vector-count snapshot) 18)
+    (and (= (vector-at snapshot 0) 121381) (= (vector-at snapshot 1) 1))
+    false))
+
+(defn snapshot-restore-cells [snapshot :vector-i64 i :i64 acc :vector-i64] :vector-i64
+  (if (= i 16) acc
+    (snapshot-restore-cells snapshot (+ i 1) (vector-conj acc (vector-at snapshot (+ i 2))))))
+
+;; On invalid input, preserve the caller's current grid byte-for-byte in value.
+(defn grid-restore [current :vector-i64 snapshot :vector-i64] :vector-i64
+  (if (and (= (vector-count current) 16) (snapshot-valid? snapshot))
+    (snapshot-restore-cells snapshot 0 [])
+    current))
+
+(defn test-snapshot-roundtrip [] :i64
+  (let [g (grid-write (grid-write (grid-new) 0 0 -9) 3 3 42)
+        snap (grid-snapshot g) restored (grid-restore (grid-new) snap)]
+    (if (and (snapshot-valid? snap) (= (grid-read restored 0 0) -9)
+             (= (grid-read restored 3 3) 42) (= (grid-read restored 1 1) 0)) 1 0)))
+
+(defn test-snapshot-refuse [] :i64
+  (let [g (grid-write (grid-new) 2 2 17)
+        a (grid-restore g [121381 1])
+        b (grid-restore a (vector-assoc (grid-snapshot (grid-new)) 0 0))
+        c (grid-restore b (vector-assoc (grid-snapshot (grid-new)) 1 2))]
+    (if (and (= (grid-read c 2 2) 17) (not (snapshot-valid? [121381 1]))
+             (not (snapshot-valid? (vector-assoc (grid-snapshot g) 0 0)))
+             (not (snapshot-valid? (vector-assoc (grid-snapshot g) 1 2)))) 1 0)))
+
+(defn test-snapshot-shape [] :i64
+  (if (and (= (vector-count (grid-snapshot [1 2])) 0)
+           (= (vector-count (grid-snapshot (grid-new))) 18)) 1 0))
+
 (defn test-corners [] :i64
   (let [g (grid-write (grid-write (grid-new) 0 0 11) 3 3 -7)]
     (if (and (= (grid-read g 0 0) 11) (= (grid-read g 3 3) -7)
@@ -39,4 +83,4 @@
     (if (and (not (cell-valid? h 0 0)) (= (vector-at h 0) 1)) 1 0)))
 
 (defn main [] :i64
-  (if (= (+ (test-corners) (test-copy) (test-refuse) (test-malformed)) 4) 0 1))
+  (if (= (+ (test-corners) (test-copy) (test-refuse) (test-malformed) (test-snapshot-roundtrip) (test-snapshot-refuse) (test-snapshot-shape)) 7) 0 1))

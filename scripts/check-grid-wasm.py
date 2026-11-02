@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the Kotoba grid checks in selfhost Wasm with a row-stride mutant.
+"""Run the Kotoba grid checks in selfhost Wasm with row-stride and snapshot-version mutants.
 
 Usage: python3 scripts/check-grid-wasm.py AMU_DIR NEW_OUTPUT_DIR CHROME
 The Amu checkout supplies its macOS ARM64 root and browser harness.
@@ -23,7 +23,14 @@ if s.count(old) != 1:
 spec = importlib.util.spec_from_file_location('amu_mac_native', amu / 'scripts/seed/check-aiueos-user-macos-native.py')
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
-for name, text, expected in [('grid', s, 0), ('mutant', s.replace(old, old.replace('row 4', 'row 3')), 1)]:
+version = '(= (vector-at snapshot 1) 1)'
+if s.count(version) != 1:
+    raise SystemExit('snapshot negative control does not match source')
+for name, text, expected in [
+    ('grid', s, 0),
+    ('mutant', s.replace(old, old.replace('row 4', 'row 3')), 1),
+    ('version-mutant', s.replace(version, '(> (vector-at snapshot 1) 0)'), 1),
+]:
     (out / f'{name}.kotoba').write_text(text, encoding='utf-8')
     mod.native_run(amu / 'seed/bootstrap/aarch64-macos/amu-full-root.macho', out,
                    'compile', f'{name}.kotoba', '--target', 'wasm32-browser', '--output', f'{name}.wasm')
