@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Synthetic, explicit legacy workbook import into transactional storage in local Chrome.
-Usage: python3 scripts/check-legacy-import-browser.py AMU_DIR BUILD_DIR OUTPUT_DIR CHROME
+Usage: python3 scripts/check-idb-legacy-import.py AMU_DIR BUILD_DIR OUTPUT_DIR CHROME
 The fixture does not prove origin, revision consistency, or real-user migration.
 """
 import functools,http.server,importlib.util,json,shutil,sys,threading,time
@@ -38,8 +38,15 @@ def pull_with_columns(count):
  return json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':value},ensure_ascii=False,separators=(',',':'))
 near_pull=pull_with_columns(1600)
 over_pull=pull_with_columns(1700)
+# A long malformed surrogate must be rejected without replacing the saved book.
+invalid_grid='{"A":[['+','.join(['"'+'x'*80+'"']*20+['"\\uD800"'])+']]}'
+valid_grid=invalid_grid.replace('\\uD800','\\u0041')
+invalid_attrs=dict(wide_attrs);invalid_attrs[':sheet/gridJson']=[edn(invalid_grid)]
+valid_attrs=dict(wide_attrs);valid_attrs[':sheet/gridJson']=[edn(valid_grid)]
+invalid_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':invalid_attrs},ensure_ascii=False,separators=(',',':'))
+valid_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':valid_attrs},ensure_ascii=False,separators=(',',':'))
 files={}
-for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('near-pull',near_pull),('over-pull',over_pull)]:
+for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('invalid-pull',invalid_pull),('valid-pull',valid_pull),('near-pull',near_pull),('over-pull',over_pull)]:
  files[name]=out/(name+'.json');files[name].write_text(value,encoding='utf-8')
 f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
@@ -105,6 +112,17 @@ try:
  ev("document.getElementById('legacy-title').value='予算'");choose('#legacy-sheets',files['sheets']);choose('#legacy-grid',files['grid']);preview()
  assert stored()==baseline and ev("document.querySelector('#backup-preview [data-k=c0]')?.value")=='雪'
  assert ev("['数式 3 件','互換性と計算結果は確認されていません'].every(v=>document.getElementById('backup-label').textContent.includes(v))")
+ # A same-tab edit during a delayed audit must save without opening a stale preview.
+ ev("document.getElementById('backup-cancel').click()")
+ ev("window.raceWorker=window.Worker;window.auditPending=false;window.auditDone=false;window.Worker=class extends window.raceWorker {constructor(...a){super(...a);this.addEventListener('message',()=>{if(this.audit)window.auditDone=true})}postMessage(msg,...rest){if(msg.args[0]==='formula-audit'){this.audit=true;window.auditPending=true;setTimeout(()=>super.postMessage(msg,...rest),1500)}else super.postMessage(msg,...rest)}};document.getElementById('status').textContent='';document.getElementById('legacy-preview').click()")
+ wait('window.auditPending === true','preview audit pending')
+ ev("document.getElementById('status').textContent='待機';(()=>{let e=document.querySelector('[data-k=c0]');e.value='プレビュー中の入力';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
+ wait("window.auditDone && document.getElementById('status').textContent==='保存しました'",'edit during preview saved')
+ if ev("document.getElementById('backup-dialog').open") or 'プレビュー中の入力' not in stored():raise ValueError('stale preview or lost edit')
+ ev("window.Worker=window.raceWorker;document.getElementById('status').textContent='待機';(()=>{let e=document.querySelector('[data-k=c0]');e.value='既存';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
+ wait("document.getElementById('status').textContent==='保存しました'",'restore after preview race')
+ if stored()!=baseline:raise ValueError('preview race baseline not restored')
+ preview()
  ev("document.getElementById('backup-confirm').click()");wait("document.getElementById('status').textContent.includes('復元しました')",'import')
  assert stored()==expected
  for part,value in [('title','予算'),('sheets',meta),('grid',grid)]:export_source(part,value)
@@ -115,6 +133,15 @@ try:
  assert stored()==pull_expected
  export_source('pull',pull)
  before=record('current')
+ choose('#legacy-pull',files['valid-pull'])
+ ev("document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('backup-dialog').open",'valid long pull preview')
+ ev("document.getElementById('backup-cancel').click()")
+ if record('current')!=before:raise ValueError('cancelled valid long pull changed saved data')
+ choose('#legacy-pull',files['invalid-pull'])
+ ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'malformed long pull refused')
+ if ev("document.getElementById('backup-dialog').open") or record('current')!=before:raise ValueError('malformed long pull changed saved data')
  choose('#legacy-pull',files['near-pull'])
  ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
  wait("document.getElementById('backup-dialog').open || document.getElementById('status').textContent.includes('読み込めません')",'near-limit preview')
@@ -129,7 +156,7 @@ try:
  ev('window.__old=true');pipe.call('Page.reload',{},session)
  wait("window.__old!==true && document.querySelector('[data-k=c0]')?.value==='1'",'near-limit reload')
  assert stored()==near_expected
- report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','near-limit-pull-restore-reload'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
+ report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','near-limit-pull-restore-reload'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
  (out/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(report['status'])
 finally:
  pipe.close();server.shutdown();server.server_close()

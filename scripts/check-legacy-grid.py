@@ -33,7 +33,11 @@ escaped_expected = ''.join(frame('1') + frame(str(c + 1)) + frame(v)
                            for c, v in enumerate(['雪😀', 'line\nnext', '"\\/']))
 long_text = ('a' * 31 + '😀' + '"\\\n' + '雪' * 8) * 100
 long_token = json.dumps(long_text, ensure_ascii=True)
-invalid_strings = ['"' + 'a' * 64 + '\\uD800"', '"' + 'a' * 65 + '"x"', '"' + 'a' * 80 + '雪']
+invalid_strings = ['"' + 'a' * 64 + '\\uD800"', '"' + 'a' * 65 + '"x"', '"' + 'a' * 80 + '雪',
+                   '"' + 'x' * 1024 + '\\q"', '"' + 'x' * 1024 + '\\uD800"',
+                   '"' + 'x' * 1024 + '\\uDC00"', '"' + 'x' * 1024 + '\\uD800\\u0041"']
+buffered_text = ('雪😀\n\t"\\/é' * 150) + '\x00'
+buffered_token = json.dumps(buffered_text, ensure_ascii=True)
 boundary_token = '"' + 'a' * 29 + '\\uD83D\\uDE00' + 'b' * 29 + '"'
 boundary_text = 'a' * 29 + '😀' + 'b' * 29
 grid_object = json.dumps({**{'Sheet' + str(i): [[str(i)]] for i in range(40)},
@@ -94,6 +98,7 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(option-some?-of [:option :string] v) (string=? (option-value-of [:option :string] v "") ' + literal(expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-cells ' + literal(escaped) + ') "bad") ' + literal(escaped_expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (json-unquote ' + literal(long_token) + ') "bad") ' + literal(long_text) + ') ' + \
+    '(string=? (option-value-of [:option :string] (json-unquote ' + literal(buffered_token) + ') "bad") ' + literal(buffered_text) + ') ' + \
     '(string=? (option-value-of [:option :string] (json-unquote ' + literal(boundary_token) + ') "bad") ' + literal(boundary_text) + ') ' + \
     ' '.join('(not (option-some?-of [:option :string] (json-unquote ' + literal(item) + ')))' for item in invalid_strings) + ' ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-find ' + literal(grid_object) + ' "予算!") "bad") ' + literal(object_expected) + ') ' + \
