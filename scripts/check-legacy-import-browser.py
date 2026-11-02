@@ -27,8 +27,14 @@ wide_meta='[{"sheetId":0,"title":"A"}]'
 wide_grid=json.dumps({'A':[['1']*1024]},separators=(',',':'))
 wide_attrs=dict(attrs);wide_attrs[':sheet/title']=[edn('Wide')];wide_attrs[':sheet/sheetsJson']=[edn(wide_meta)];wide_attrs[':sheet/gridJson']=[edn(wide_grid)]
 wide_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':wide_attrs},ensure_ascii=False,separators=(',',':'))
+def pull_with_columns(count):
+ value=dict(wide_attrs)
+ value[':sheet/gridJson']=[edn(json.dumps({'A':[['1']*count]},separators=(',',':')))]
+ return json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':value},ensure_ascii=False,separators=(',',':'))
+near_pull=pull_with_columns(1600)
+over_pull=pull_with_columns(1700)
 files={}
-for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull)]:
+for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('near-pull',near_pull),('over-pull',over_pull)]:
  files[name]=out/(name+'.json');files[name].write_text(value,encoding='utf-8')
 f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
@@ -45,6 +51,10 @@ wide_book='HW3|'+f('Wide')+f(wide_source)+f(f('n:0')+f('A')+wide_cells)
 wide_expected='HU1|'+f(wide_book)+f('n:0')+f('1')+f('1')
 wide_pull_book='HW3|'+f('Wide')+f('LE2|'+f(wide_pull))+f(f('n:0')+f('A')+wide_cells)
 wide_pull_expected='HU1|'+f(wide_pull_book)+f('n:0')+f('1')+f('1')
+near_cells=''.join(cell(1,i,'1') for i in range(1,1601))
+near_book='HW3|'+f('Wide')+f('LE2|'+f(near_pull))+f(f('n:0')+f('A')+near_cells)
+near_expected='HU1|'+f(near_book)+f('n:0')+f('1')+f('1')
+if not 34000 < len(near_expected.encode()) <= 35000:raise ValueError('near-limit fixture size')
 try:
  target=pipe.call('Target.createTarget',{'url':'about:blank'})['targetId'];session=pipe.call('Target.attachToTarget',{'targetId':target,'flatten':True})['sessionId']
  pipe.call('Network.enable',{},session);pipe.call('Page.navigate',{'url':base+'site/index.html'},session)
@@ -142,9 +152,18 @@ try:
  ev("document.getElementById('backup-confirm').click()")
  wait("document.getElementById('status').textContent==='バックアップから復元しました。'",'wide pull commit')
  if stored()!=wide_pull_expected:raise ValueError('wide pull import lost cells or response bytes')
+ choose('#legacy-pull',files['near-pull']);pull_preview()
+ if stored()!=wide_pull_expected:raise ValueError('near-limit preview changed state')
+ ev("document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent==='バックアップから復元しました。'",'near-limit commit')
+ if stored()!=near_expected:raise ValueError('near-limit pull lost cells or provenance')
+ choose('#legacy-pull',files['over-pull'])
+ ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'over-limit refusal')
+ if stored()!=near_expected or ev("document.getElementById('backup-dialog').open"):raise ValueError('over-limit pull changed state')
  requests=[e['params']['request']['url'] for e in pipe.events if e.get('method')=='Network.requestWillBeSent']
  if not requests or any(not u.startswith(base) for u in requests):raise ValueError('unexpected network request')
- (out/'result.json').write_text(json.dumps({'status':'PASS','scope':'synthetic local Chrome','checks':['mismatched sheet and pull identity refusal','two-file and pull preview/cancel','backup and primary write failure','stale storage refusal','byte-exact import and pull provenance','1024-column import','second sheet and reload','local requests only'],'limitations':['no verified old export, authorization, completeness or revision','no real user migration','no QEMU or publication']},indent=2)+'\n')
+ (out/'result.json').write_text(json.dumps({'status':'PASS','scope':'synthetic local Chrome','checks':['mismatched sheet and pull identity refusal','two-file and pull preview/cancel','backup and primary write failure','stale storage refusal','byte-exact import and pull provenance','1024-column import','1600-column near-limit pull','1700-column over-limit refusal','second sheet and reload','local requests only'],'nearLimitBytes':len(near_expected.encode()),'limitations':['no verified old export, authorization, completeness or revision','no real user migration','no QEMU or publication']},indent=2)+'\n')
  print('PASS_LEGACY_IMPORT_BROWSER')
 finally:
  pipe.close();server.shutdown();server.server_close()
