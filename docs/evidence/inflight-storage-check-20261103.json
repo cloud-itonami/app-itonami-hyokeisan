@@ -1,0 +1,107 @@
+{
+  "status": "PASS_INFLIGHT_STORAGE_REGRESSION",
+  "app": "hyokeisan",
+  "baseCommit": "07e29ceacd7f3b988251a4353d2691b4f46750d8",
+  "browserAdapterSha256": "274a17bffa8c65afe86adce02a6f7dc3e27db5303e7775b087c89176b71644d1",
+  "observerSha256": "51d6ffe2de0300117ec667dbf67509634d26ff46fce3428e965c231225267f08",
+  "previousAdapterSha256": "a2c201aba30961af203ff9e9fa3a7762dd5158acbf07e9ab79f928e6e56f6aaa",
+  "buildReceipt": {
+    "wasmSha256": "fd30b0f30e12355ecfa6d357daf21dd28c1b8bbf9f9c5a939b3036fcc49f02a8",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "25920c2c14970924b09dee8600ff544f472ef7d8cf38d59557b2ffcea916892e",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab",
+    "draftPolicyRevision": "26da503693359e3e7d544b50b97cae1c5cf6041e",
+    "draftPolicySourceSha256": "8888ad0d88e8f954b5b1cd4fa0d3da62ac13e906f9410866cfd9dec6112f11f2",
+    "draftPolicyWasmSha256": "baa17f80e3ce7ce32b86086606168846454ca547842359251b50b911d4b89e42",
+    "didSha256": "4949be2174337d03be51a68e95eb014fab5062bd5e4371fd2110be28895449a9"
+  },
+  "previousCandidate": {
+    "status": "FAIL_EXTERNAL_WRITE_OVERWRITTEN",
+    "otherValidSnapshotPreserved": false,
+    "pendingFieldPreserved": true,
+    "journalPreserved": false,
+    "retryShown": false,
+    "scope": "synthetic non-cooperating tab during Wasm step; final check is not atomic CAS",
+    "restoreOtherSnapshotPreserved": false,
+    "restoreNoStaleBackup": false
+  },
+  "tests": {
+    "inflight": {
+      "sha256": "4a162de1f536487b86b9253a7efe8d0561dd07cbc433ae4a0de47199c5757302",
+      "result": {
+        "status": "PASS_INFLIGHT_STORAGE_REFUSAL",
+        "otherValidSnapshotPreserved": true,
+        "pendingFieldPreserved": true,
+        "journalPreserved": true,
+        "retryShown": true,
+        "scope": "synthetic non-cooperating tab during Wasm step; final check is not atomic CAS",
+        "restoreOtherSnapshotPreserved": true,
+        "restoreNoStaleBackup": true
+      }
+    },
+    "session": {
+      "sha256": "cd256a4c1824aada7a2fb2d725b785802a632f9d37a70608d8d0201ad62786e1",
+      "result": {
+        "status": "PASS",
+        "checks": [
+          "same-tab-reload",
+          "explicit-recovery-and-retry",
+          "stale-draft-refusal",
+          "raw-export",
+          "explicit-discard",
+          "malformed-draft-refusal",
+          "recovery-selection-race-refusal",
+          "journal-quota-and-retry",
+          "journal-cleanup-failure",
+          "initial-state-mismatch",
+          "program-digest-mismatch",
+          "journal-read-failure-retry",
+          "empty-journal-read-retry",
+          "surrogate-preserved",
+          "33-entry-preview",
+          "pending-discard-race",
+          "loopback-only"
+        ],
+        "limitations": [
+          "sessionStorage only",
+          "not crash or closed-tab durability",
+          "synthetic data"
+        ]
+      }
+    },
+    "ui": {
+      "sha256": "578e6ca53838b759dfb0034fa2c235dca14f39444e62a7af1a4ef9ead7045fb4",
+      "result": {
+        "status": "PASS",
+        "checks": [
+          "backup-export-import-cancel-restore",
+          "backup-invalid-both-write-failures-conflict",
+          "grid",
+          "addition",
+          "subtraction-multiplication-division-reload",
+          "unicode-formula-save-reload",
+          "sum",
+          "recalculate",
+          "cycle",
+          "save-reload",
+          "synthetic-composition-with-concurrent-redraw",
+          "oversized-refusal",
+          "concurrent-tab-refusal",
+          "worker-timeout-retry",
+          "hidden-timeout-retry",
+          "worker-interruption-retry",
+          "storage-failure-retry",
+          "multiple-unsaved-fields",
+          "corrupt-refusal",
+          "future-HW3-refusal",
+          "digest-refusal",
+          "policy-digest-refusal",
+          "loopback-only"
+        ]
+      }
+    }
+  },
+  "scope": "synthetic Chrome concurrent tab; final localStorage comparison is not atomic CAS; no actual user data, OS/QEMU, or release"
+}
