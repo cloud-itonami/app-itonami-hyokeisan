@@ -1,0 +1,42 @@
+(ns hyokeisan.grid (:export [main]))
+
+;; A deliberately bounded integer grid kernel. No I/O or persistence lives here.
+;; A rejected write returns the original grid unchanged.
+(defn grid-new [] :vector-i64
+  [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0])
+
+(defn cell-valid? [grid :vector-i64 row :i64 col :i64] :bool
+  (and (= (vector-count grid) 16) (>= row 0) (< row 4)
+       (>= col 0) (< col 4)))
+
+(defn grid-write [grid :vector-i64 row :i64 col :i64 value :i64] :vector-i64
+  (if (cell-valid? grid row col)
+    (vector-assoc grid (+ (* row 4) col) value)
+    grid))
+
+;; The caller must check cell-valid? before interpreting the returned value.
+(defn grid-read [grid :vector-i64 row :i64 col :i64] :i64
+  (if (cell-valid? grid row col) (vector-at grid (+ (* row 4) col)) 0))
+
+(defn test-corners [] :i64
+  (let [g (grid-write (grid-write (grid-new) 0 0 11) 3 3 -7)]
+    (if (and (= (grid-read g 0 0) 11) (= (grid-read g 3 3) -7)
+             (= (grid-read g 0 1) 0)) 1 0)))
+
+(defn test-copy [] :i64
+  (let [before (grid-new) after (grid-write before 1 2 9)]
+    (if (and (= (grid-read before 1 2) 0) (= (grid-read after 1 2) 9)) 1 0)))
+
+(defn test-refuse [] :i64
+  (let [g (grid-write (grid-new) 2 0 5)
+        a (grid-write g -1 0 99)
+        b (grid-write a 0 4 99)]
+    (if (and (= (grid-read b 2 0) 5) (= (grid-read b 0 0) 0)
+             (not (cell-valid? b 4 0)) (not (cell-valid? b 0 -1))) 1 0)))
+
+(defn test-malformed [] :i64
+  (let [g [1 2] h (grid-write g 0 0 7)]
+    (if (and (not (cell-valid? h 0 0)) (= (vector-at h 0) 1)) 1 0)))
+
+(defn main [] :i64
+  (if (= (+ (test-corners) (test-copy) (test-refuse) (test-malformed)) 4) 0 1))
