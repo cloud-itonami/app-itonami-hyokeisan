@@ -182,6 +182,30 @@ function parsePullInfo(wire) {
   if (pos !== data.length - 1 || !/^(0|[1-9][0-9]{0,17})$/.test(fields[2])) throw Error('pull trailing data');
   return fields;
 }
+function parseFormulaAudit(wire) {
+  const data = encoder.encode(wire);
+  if (!wire.startsWith('FA1|') || data.length > LIMIT || data[data.length - 1] !== 10) throw Error('formula audit');
+  let pos = 4;
+  function field() {
+    const start = pos;
+    while (pos < data.length && data[pos] >= 48 && data[pos] <= 57 && pos - start < 7) pos++;
+    if (pos === start || data[pos] !== 58 || (pos - start > 1 && data[start] === 48)) throw Error('audit length');
+    const n = Number(decoder.decode(data.slice(start, pos++)));
+    if (n > 1024 || pos + n > data.length - 1) throw Error('audit bounds');
+    const text = decoder.decode(data.slice(pos, pos + n)); pos += n; return text;
+  }
+  const countText = field(), shownText = field();
+  if (!/^(0|[1-9][0-9]{0,6})$/.test(countText) || !/^(0|[1-9][0-9]?)$/.test(shownText)) throw Error('audit count');
+  const count = Number(countText), shown = Number(shownText), entries = [];
+  if (shown > 20 || shown > count) throw Error('audit shown');
+  for (let i = 0; i < shown; i++) {
+    const id = field(), title = field(), address = field();
+    if (!id || !/^[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(address)) throw Error('audit location');
+    entries.push(JSON.stringify(title) + ' (' + JSON.stringify(id) + ') ' + address);
+  }
+  if (pos !== data.length - 1) throw Error('audit trailing data');
+  return { count, entries };
+}
 function run(args) {
   return new Promise((resolve, reject) => {
     const worker = new Worker('./worker.js');
@@ -316,9 +340,16 @@ function exportBackup() {
 async function previewBackup(candidate, label) {
   if (typeof candidate !== 'string' || !(candidate.startsWith('HS1|') || candidate.startsWith('HU1|')) || encoder.encode(candidate).length > LIMIT) throw Error('invalid backup');
   const tree = parseTree(await run(['view', candidate]));
+  let formulaNotice = '\n数式の互換性と計算結果は確認されていません。元データと照合してください。';
+  if (candidate.startsWith('HU1|')) {
+    const audit = parseFormulaAudit(await run(['formula-audit', candidate]));
+    formulaNotice = '\n数式 ' + audit.count + ' 件。互換性と計算結果は確認されていません。元データと照合してください。' +
+      (audit.entries.length ? '\n数式の位置（先頭 ' + audit.entries.length + ' 件）:\n' + audit.entries.join('\n') : '') +
+      (audit.count > audit.entries.length ? '\nほか ' + (audit.count - audit.entries.length) + ' 件。' : '');
+  }
   proposedBackup = candidate;
   proposedBase = snapshot; proposedPersisted = persisted;
-  document.getElementById('backup-label').textContent = label;
+  document.getElementById('backup-label').textContent = label + formulaNotice;
   backupPreview.replaceChildren(tree);
   backupDialog.showModal();
 }

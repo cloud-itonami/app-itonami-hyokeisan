@@ -55,6 +55,7 @@
       (and (string=? argc "1") (string=? op "init")) (browser-emit (init))
       (and (string=? argc "2") (string=? op "view")) (browser-render (browser-arg "1"))
       (and (string=? argc "2") (string=? op "upgrade")) (browser-emit-wire (ui-from-hs1 (browser-arg "1")))
+      (and (string=? argc "2") (string=? op "formula-audit")) (browser-emit-wire (formula-audit (browser-arg "1")))
       (and (string=? argc "4") (string=? op "legacy"))
         (browser-emit-wire (legacy-workbook-candidate (browser-arg "1") (browser-arg "2") (browser-arg "3")))
       (and (string=? argc "2") (string=? op "legacy-pull"))

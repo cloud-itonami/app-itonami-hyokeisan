@@ -15,7 +15,7 @@ server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Quiet,d
 threading.Thread(target=server.serve_forever,daemon=True).start();pipe=browser.Pipe(str(chrome),profile)
 base=f'http://127.0.0.1:{server.server_port}/';key='itonami.hyokeisan.candidate.hs1'
 meta='[{"sheetId":0,"title":"A","color":"blue"},{"sheetId":"b","title":"B"}]'
-grid='{"B":[["x"]],"A":[["雪",""],["=A1+2","3"]]}'
+grid='{"B":[["x"],["","=9/2"]],"A":[["雪",""],["=A1+2","3"]]}'
 edn=lambda value:json.dumps(value,ensure_ascii=False)
 attrs={':sheet/type':[edn('Spreadsheet')],':sheet/id':[edn('sheet:book:demo')],':sheet/slug':[edn('demo')],
        ':sheet/title':[edn('予算')],':sheet/revision':['7'],':sheet/sheetsJson':[edn(meta)],
@@ -25,6 +25,10 @@ pull=json.dumps(pull_obj,ensure_ascii=False,separators=(',',':'))
 bad_pull=json.loads(pull);bad_pull['entity']='sheet:book:other';bad_pull=json.dumps(bad_pull,ensure_ascii=False,separators=(',',':'))
 hostile_pull=json.loads(pull);hostile_pull['graph']='<img src=x onerror=alert(1)>';hostile_pull=json.dumps(hostile_pull,ensure_ascii=False,separators=(',',':'))
 wide_meta='[{"sheetId":0,"title":"A"}]'
+hostile_title='<img src=x onerror=alert(1)>'
+hostile_meta=json.dumps([{'sheetId':'safe','title':hostile_title}],separators=(',',':'))
+hostile_grid=json.dumps({hostile_title:[['=1+2']]},separators=(',',':'))
+formula_grid=json.dumps({'A':[['=1+2'] for _ in range(23)]},separators=(',',':'))
 wide_grid=json.dumps({'A':[['1']*1024]},separators=(',',':'))
 wide_attrs=dict(attrs);wide_attrs[':sheet/title']=[edn('Wide')];wide_attrs[':sheet/sheetsJson']=[edn(wide_meta)];wide_attrs[':sheet/gridJson']=[edn(wide_grid)]
 wide_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':wide_attrs},ensure_ascii=False,separators=(',',':'))
@@ -35,13 +39,13 @@ def pull_with_columns(count):
 near_pull=pull_with_columns(1600)
 over_pull=pull_with_columns(1700)
 files={}
-for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('hostile-pull',hostile_pull),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('near-pull',near_pull),('over-pull',over_pull)]:
+for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('near-pull',near_pull),('over-pull',over_pull)]:
  files[name]=out/(name+'.json');files[name].write_text(value,encoding='utf-8')
 f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
 provenance='LE1|'+f('予算')+f(meta)+f(grid)
 a=f('n:0')+f('A')+cell(1,1,'雪')+cell(2,1,'=A1+2')+cell(2,2,'3')
-b=f('s:b')+f('B')+cell(1,1,'x')
+b=f('s:b')+f('B')+cell(1,1,'x')+cell(2,2,'=9/2')
 book='HW3|'+f('予算')+f(provenance)+f(a)+f(b)
 expected='HU1|'+f(book)+f('n:0')+f('1')+f('1')
 pull_book='HW3|'+f('予算')+f('LE2|'+f(pull))+f(a)+f(b)
@@ -95,8 +99,22 @@ try:
  if stored()!=baseline:raise ValueError('invalid source changed baseline')
  choose('#legacy-grid',files['grid']);preview()
  if stored()!=baseline or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='雪':raise ValueError('preview mismatch')
+ if not ev("['数式 2 件','互換性と計算結果は確認されていません','\"A\" (\"n:0\") A2','\"B\" (\"s:b\") B2'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('cross-sheet formula audit missing')
  ev("document.getElementById('backup-cancel').click()")
  if stored()!=baseline:raise ValueError('cancel changed baseline')
+ ev("window.auditWorker=window.Worker;window.Worker=class extends window.auditWorker {postMessage(msg){if(msg.args[0]==='formula-audit'){this.terminate();queueMicrotask(()=>this.onerror(new Event('error')))}else super.postMessage(msg)}};document.getElementById('status').textContent='';document.getElementById('legacy-preview').click()")
+ wait("document.getElementById('status').textContent.includes('旧データを読み込めません')",'audit failure refusal')
+ if stored()!=baseline or ev("document.getElementById('backup-dialog').open"):raise ValueError('audit failure allowed import')
+ ev('window.Worker=window.auditWorker')
+ choose('#legacy-sheets',files['hostile-meta']);choose('#legacy-grid',files['hostile-grid']);preview()
+ if not ev("document.getElementById('backup-label').textContent.includes('<img src=x')") or ev("document.querySelector('#backup-label img')!==null"):raise ValueError('formula audit rendered sheet title as markup')
+ ev("document.getElementById('backup-cancel').click()")
+ if stored()!=baseline:raise ValueError('hostile formula preview changed state')
+ choose('#legacy-sheets',files['wide-meta']);choose('#legacy-grid',files['formula-grid']);preview()
+ if not ev("['数式 23 件','先頭 20 件','ほか 3 件','\"A\" (\"n:0\") A20'].every(v=>document.getElementById('backup-label').textContent.includes(v))") or ev("document.getElementById('backup-label').textContent.includes('\"A\" (\"n:0\") A21')"):raise ValueError('formula audit bound mismatch')
+ ev("document.getElementById('backup-cancel').click()")
+ if stored()!=baseline:raise ValueError('bounded formula preview changed state')
+ choose('#legacy-sheets',files['sheets']);choose('#legacy-grid',files['grid'])
  preview();ev("window.originalSetter=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(this===localStorage&&k.startsWith("+json.dumps(key+'.preimport.')+"))throw Error('quota');return window.originalSetter.call(this,k,v)}")
  confirm_failure(False)
  preview();ev("Storage.prototype.setItem=function(k,v){if(this===localStorage&&k==="+json.dumps(key)+")throw Error('quota');return window.originalSetter.call(this,k,v)}")
@@ -131,6 +149,7 @@ try:
  pull_preview()
  if stored()!=baseline or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='雪':raise ValueError('pull preview mismatch')
  if not ev("document.getElementById('backup-label').textContent.includes('権限による欠落')"):raise ValueError('pull visibility notice missing')
+ if not ev("['数式 2 件','\"A\" (\"n:0\") A2','\"B\" (\"s:b\") B2'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('pull formula audit missing')
  if not ev("['bfixture','sheet:book:demo','版: 7'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('pull identity or revision missing')
  ev("document.getElementById('backup-cancel').click()")
  if stored()!=baseline:raise ValueError('pull cancel changed state')
@@ -151,6 +170,7 @@ try:
  ev("document.getElementById('legacy-title').value='Wide'")
  choose('#legacy-sheets',files['wide-meta']);choose('#legacy-grid',files['wide-grid']);preview()
  if stored()!=pull_expected or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='1':raise ValueError('wide preview changed state or failed')
+ if not ev("document.getElementById('backup-label').textContent.includes('数式 0 件')"):raise ValueError('empty formula audit missing')
  ev("document.getElementById('backup-confirm').click()")
  wait("document.getElementById('status').textContent==='バックアップから復元しました。'",'wide commit')
  if stored()!=wide_expected:raise ValueError('wide import did not preserve every cell and provenance')
