@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-03",
+  "scope": "exact integer division, synthetic native/Chrome Wasm and loopback browser fixtures",
+  "appSourceHeadBeforeChanges": "3116edf20a4a67834231524fab064e5b67add82f",
+  "sourceSha256": {
+    "src/hyokeisan/sheet.kotoba": "ddecc28c5535230d2c0a8060f242fecf418de49bdd0b73ef94c74dd0f63e8042",
+    "src/hyokeisan/workbook_formula.kotoba": "7be907905c1c7829f5b14347b2e486ade128496d4c5ec80ca1770e2ff49cd0d1",
+    "scripts/check-sheet-wasm.py": "f0bbfed3b023f6f0f4a239f2d6ea2c416ecb772617f843ba9502d1ba328ffa8a",
+    "scripts/check-workbook-formula.py": "47a4b88fcd799df76c7514c0628a57f04322c3a0fd29c96a19cbbd007a397190",
+    "scripts/check-browser-ui.py": "693c773ab65d586ff4465b5b7719544c783f4293d0a7a8ed45a0c9109df61eb7",
+    "scripts/check-workbook-browser.py": "ddbb38c798030ebe90fb8c3d61a21fab5f8dadf519895acefe3b0a7d7bec7d5a",
+    "scripts/check-legacy-import-browser.py": "8f5b06da501d36283a60aef3f1e6b57559198a4264ac3a4c2273e8a52a05a0e6"
+  },
+  "build": {
+    "wasmSha256": "206be3dd70cf60b313d0df6dd2a51c34c9a1201352bf220c4dabc5eaff3df30d",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "89fb522c1b9dacc43aa28072975db7f9ac3927052cf54fa3e6174887d86390ee",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "sheetReceipt": {
+    "sourceSha256": "ddecc28c5535230d2c0a8060f242fecf418de49bdd0b73ef94c74dd0f63e8042",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "results": {
+      "sheet": {
+        "result": 0,
+        "wasmSha256": "aead1464b5ab3b59ee96824aa0c93e1dbdce4b6c7b0ea0027a8bc6147f96be9a"
+      },
+      "mutant": {
+        "result": 1,
+        "wasmSha256": "4ff88c94c4cc54e7c3e648664d00d6cf3953bc85aa3098272a6ef8a50fd94839"
+      },
+      "sub-mutant": {
+        "result": 1,
+        "wasmSha256": "0b5f5fecabefac3d426bbc6c4a3f474cd67af88ba1065196a2a8343c18c6c4f0"
+      },
+      "mul-mutant": {
+        "result": 1,
+        "wasmSha256": "17363a0c126ef756717adabeb1f2780ac2312c9e926ea1d1e134ae97a9dbe4b9"
+      },
+      "sum-text-mutant": {
+        "result": 1,
+        "wasmSha256": "f014869c2856eec7d7bf24c101aff05756bbd66c70b3a1123c3f5c5de954e05b"
+      },
+      "division-mutant": {
+        "result": 1,
+        "wasmSha256": "f920fb0bc6612f368679de0015747124bd8794dd79144d22ea06b2f9a5857b50"
+      }
+    }
+  },
+  "workbookReceipt": {
+    "sourceSha256": "039bffa26abf60561d52291ae3ade20f4b1e4d71a0de49d6d44c57bc9179f118",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "browser": {
+      "product": "Chrome/156.0.8078.74",
+      "protocol": "1.3"
+    },
+    "results": {
+      "formula": {
+        "report": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24171889}}",
+        "wasmSha256": "361a56b0592b298112f8f127e65e038860288cc65aa2817325e862b7411fe22f"
+      },
+      "column-mutant": {
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24265337}}",
+        "wasmSha256": "91142bacf88f16fa5925fda8b785508bfffce751b9b1a450c8f6785464e64482"
+      },
+      "sum-text-mutant": {
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24200888}}",
+        "wasmSha256": "bbf0965091ace3c59a4c10954be6eb16e3ac7399bf9cc2c0d76ae52cf4fe22c5"
+      },
+      "division-mutant": {
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24223130}}",
+        "wasmSha256": "2b37a2c5e08ad1b554fd3d32e270cfaec40411263fc5bdc515dff309528e9d96"
+      },
+      "sum-1024": {
+        "report": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24944754}}",
+        "wasmSha256": "f92389be2e9a0da964e2f56a7413360c7ff222688a0c6a3159834d9788fe2ff3"
+      }
+    },
+    "limitations": [
+      "synthetic data",
+      "bounded formula subset",
+      "no QEMU or release"
+    ]
+  },
+  "browserChecks": [
+    "HS1 exact and negative division, divide by zero, fractional refusal, save and reload",
+    "HU1 cross-page division and save/reload",
+    "synthetic legacy two-file and pull import preserves division formulas; exact result and fractional refusal after reload",
+    "backup, concurrency and failure behavior"
+  ],
+  "limitations": [
+    "integer-only; non-integral quotient and decimal arithmetic remain unsupported and show #ERROR",
+    "one-operator bounded grammar, not complete Excel compatibility",
+    "synthetic data only; no actual migration, QEMU or production release"
+  ]
+}

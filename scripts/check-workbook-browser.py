@@ -110,6 +110,10 @@ try:
     wait("document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='5'", 'cross-page formula')
     input_('c2', '=SUM(A1:D1)')
     wait("document.querySelector('[data-k=c2]')?.parentElement.querySelector('.value')?.textContent==='3'", 'cross-page SUM')
+    input_('c3', '=A1/-3')
+    wait("document.querySelector('[data-k=c3]')?.parentElement.querySelector('.value')?.textContent==='-1'", 'exact division')
+    input_('c3', '=A1/2')
+    wait("document.querySelector('[data-k=c3]')?.parentElement.querySelector('.value')?.textContent==='#ERROR'", 'fractional division refusal')
     input_('c3', '=H1')
     wait("document.querySelector('[data-k=c3]')?.parentElement.querySelector('.value')?.textContent==='#ERROR'", 'cycle refusal')
     click('page-down'); wait("document.querySelector('[data-k=c15]')?.getAttribute('aria-label')==='セル H8' && document.getElementById('status').textContent==='保存しました'", 'page down')
@@ -120,8 +124,10 @@ try:
     click('page-right'); wait("document.querySelector('[data-k=c0]')?.getAttribute('aria-label')==='セル E1' && document.querySelector('[data-k=c0]')?.value==='別シート E1' && document.getElementById('status').textContent==='保存しました'", 'offscreen cell retained')
     wait("document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='7' && document.querySelector('[data-k=c2]')?.parentElement.querySelector('.value')?.textContent==='5'", 'offscreen dependency recalculated')
     click('page-down'); wait("document.querySelector('[data-k=c15]')?.value==='別シート H8' && document.getElementById('status').textContent==='保存しました'", 'second offscreen cell retained')
+    input_('c14', '=12/-3')
+    wait("document.querySelector('[data-k=c14]')?.parentElement.querySelector('.value')?.textContent==='-4'", 'division before reload')
     saved = snapshot(); reload()
-    wait("document.querySelector('[data-k=c15]')?.value==='別シート H8'", 'workbook reload')
+    wait("document.querySelector('[data-k=c15]')?.value==='別シート H8' && document.querySelector('[data-k=c14]')?.value==='=12/-3' && document.querySelector('[data-k=c14]')?.parentElement.querySelector('.value')?.textContent==='-4'", 'workbook division reload')
     if snapshot() != saved or prior not in saved: raise ValueError('workbook or original provenance changed on reload')
     # Another tab sees the same saved workbook, but a stale edit must not win.
     second = pipe.call('Target.createTarget', {'url': base + 'site/index.html'})['targetId']
@@ -179,7 +185,7 @@ try:
     wait("localStorage.getItem("+json.dumps(key)+")==="+json.dumps(saved,ensure_ascii=False)+" && document.getElementById('status').textContent==='バックアップから復元しました。'", 'prior workbook recovered')
     requests = [e['params']['request']['url'] for e in pipe.events if e.get('method') == 'Network.requestWillBeSent']
     if not requests or any(not u.startswith(base) for u in requests): raise ValueError('unexpected network request')
-    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['HS1 preview/cancel','backup and explicit upgrade','backup and primary failures','stale upgrade refusal','multiple sheets','offscreen cells','cross-page formula and SUM','cycle refusal','save/reload','stale workbook tab','HU1 export','HU1 import preview/cancel/confirm and malformed refusal','old-app refusal','prior HS1 restore','prior workbook recovery','loopback only'],
+    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['HS1 preview/cancel','backup and explicit upgrade','backup and primary failures','stale upgrade refusal','multiple sheets','offscreen cells','cross-page formula, division and SUM','cycle refusal','save/reload','stale workbook tab','HU1 export','HU1 import preview/cancel/confirm and malformed refusal','old-app refusal','prior HS1 restore','prior workbook recovery','loopback only'],
         'limitations':['synthetic fixtures','no old-origin export','no real migration','formula subset','no QEMU or release qualification']},indent=2)+'\n')
     print('PASS_WORKBOOK_BROWSER explicit upgrade, editing, save/reload and rollback')
 finally:

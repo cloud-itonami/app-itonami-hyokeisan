@@ -76,6 +76,13 @@
       (if (<= n 1) -1
         (let [next (string-index-of (string-substring expr 1 n) "-")]
           (if (< next 0) -1 (+ next 1)))))))
+;; Division returns a value only when it is exact in this integer model.
+(defn exact-divide [a :i64 b :i64] [:option :i64]
+  (if (= b 0) (option-none-of [:option :i64])
+    (if (not (= (rem a b) 0)) (option-none-of [:option :i64])
+      (let [v (quot a b)]
+        (if (or (< v -1000000000) (> v 1000000000)) (option-none-of [:option :i64])
+          (option-some-of [:option :i64] v))))))
 (defn eval-binary [s :document expr :string seen :i64 op :string pos :i64] [:option :i64]
   (let [n (string-byte-length expr)]
     (if (or (<= pos 0) (>= pos (- n 1))) (option-none-of [:option :i64])
@@ -84,8 +91,9 @@
             av (option-value-of [:option :i64] a 0) bv (option-value-of [:option :i64] b 0)
             total (if (string=? op "-") (- av bv) (* av bv))]
         (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
-                 (>= total -1000000000) (<= total 1000000000))
-          (option-some-of [:option :i64] total) (option-none-of [:option :i64]))))))
+                 (or (string=? op "/") (and (>= total -1000000000) (<= total 1000000000))))
+          (if (string=? op "/") (exact-divide av bv) (option-some-of [:option :i64] total))
+          (option-none-of [:option :i64]))))))
 ;; Grammar offsets below are byte offsets for ASCII tokens. Refuse non-ASCII
 ;; formulas as values before taking any fixed-width substring; text cells may
 ;; still contain arbitrary UTF-8. Never probe inside a multi-byte code point.
@@ -105,8 +113,9 @@
           (sum-range s (quot a 4) (rem a 4) (quot a 4) (rem a 4) (quot b 4) (rem b 4) seen 0)))
       (let [expr (string-substring formula 1 n) plus (string-index-of expr "+")]
         (if (< plus 0)
-          (let [times (string-index-of expr "*") minus (binary-minus-index expr)]
+          (let [times (string-index-of expr "*") slash (string-index-of expr "/") minus (binary-minus-index expr)]
             (cond (>= times 0) (eval-binary s expr seen "*" times)
+                  (>= slash 0) (eval-binary s expr seen "/" slash)
                   (>= minus 0) (eval-binary s expr seen "-" minus)
                   :else (eval-token s expr seen)))
           (if (or (= plus 0) (= plus (- (string-byte-length expr) 1))) (option-none-of [:option :i64])
@@ -164,6 +173,13 @@
         unicode-formula (step s "c11" "input" "=日本語")
         unicode-length (step s "c12" "input" "=ああ1234")
         unicode-ref (step s "c13" "input" "=é")
+        div-ref (step s "c6" "input" "=B1/A1")
+        div-exact (step s "c6" "input" "=-12/B1")
+        div-negative (step s "c6" "input" "=12/-3")
+        div-zero (step s "c6" "input" "=1/0")
+        div-zero-top (step s "c6" "input" "=0/B1")
+        div-fraction (step s "c6" "input" "=3/2")
+        div-overflow-product (step (step (init) "c0" "input" "=999999*1000") "c1" "input" "=A1/2")
         sum-text (step (step (step (init) "c0" "input" "売上") "c1" "input" "3") "c4" "input" "=SUM(A1:B1)")
         sum-decimal (step sum-text "c0" "input" "1.25")
         sum-error (step sum-text "c0" "input" "#DIV/0!")
@@ -176,6 +192,10 @@
              (string=? (shown minus 6) "-1") (string=? (shown times 7) "-12")
              (string=? (shown bad 8) "#ERROR") (string=? (shown signs 9) "1")
              (string=? (shown overflow 1) "#ERROR") (string=? (shown cyclic-product 10) "#ERROR")
+             (string=? (shown div-ref 6) "#ERROR") (string=? (shown div-exact 6) "-3")
+             (string=? (shown div-negative 6) "-4") (string=? (shown div-zero 6) "#ERROR")
+             (string=? (shown div-zero-top 6) "0") (string=? (shown div-fraction 6) "#ERROR")
+             (string=? (shown div-overflow-product 1) "499999500")
              (string=? (shown unicode-formula 11) "#ERROR")
              (string=? (shown unicode-length 12) "#ERROR") (string=? (shown unicode-ref 13) "#ERROR")
              (string=? (shown sum-text 4) "3") (string=? (shown sum-decimal 4) "#ERROR")

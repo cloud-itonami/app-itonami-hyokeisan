@@ -17,6 +17,8 @@ anchor = 'total (+ (option-value-of [:option :i64] a 0) (option-value-of [:optio
 if source.count(anchor) != 1: raise ValueError('mutation anchor changed')
 sub_anchor = '(if (string=? op "-") (- av bv) (* av bv))'
 if source.count(sub_anchor) != 1: raise ValueError('subtraction mutation anchor changed')
+div_anchor = '(not (= (rem a b) 0))'
+if source.count(div_anchor) != 1: raise ValueError('division exactness mutation anchor changed')
 text_anchor = '(sum-ignored-text? (cell-text s (+ (* r 4) c)))'
 if source.count(text_anchor) != 1: raise ValueError('SUM text mutation anchor changed')
 spec = importlib.util.spec_from_file_location('mac', amu / 'scripts/seed/check-aiueos-user-macos-native.py')
@@ -29,6 +31,7 @@ cases = [
     ('sub-mutant', source.replace(sub_anchor, sub_anchor.replace('(- av bv)', '(+ av bv)'), 1), 1),
     ('mul-mutant', source.replace(sub_anchor, sub_anchor.replace('(* av bv)', '(+ av bv)'), 1), 1),
     ('sum-text-mutant', source.replace(text_anchor, '(= 0 1)', 1), 1),
+    ('division-mutant', source.replace(div_anchor, '(= 0 1)', 1), 1),
 ]
 for name, text, expected in cases:
     src = out / (name + '.kotoba'); src.write_text(text)
@@ -43,4 +46,4 @@ for name, text, expected in cases:
     results[name] = {'result': expected, 'wasmSha256': hashlib.sha256((out / (name + '.wasm')).read_bytes()).hexdigest()}
 (out / 'receipt.json').write_text(json.dumps({'sourceSha256': hashlib.sha256(source.encode()).hexdigest(),
     'compilerSha256': hashlib.sha256(compiler.read_bytes()).hexdigest(), 'results': results}, indent=2) + '\n')
-print('PASS_HYOKEISAN_MODEL native, Wasm and addition/subtraction/multiplication mutants')
+print('PASS_HYOKEISAN_MODEL native, Wasm and addition/subtraction/multiplication/division mutants')

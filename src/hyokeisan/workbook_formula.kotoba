@@ -55,8 +55,9 @@
             x (option-value-of [:option :i64] a 0) y (option-value-of [:option :i64] b 0)
             value (cond (string=? op "+") (+ x y) (string=? op "-") (- x y) :else (* x y))]
         (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
-                 (>= value -1000000000) (<= value 1000000000))
-          (option-some-of [:option :i64] value) (option-none-of [:option :i64]))))))
+                 (or (string=? op "/") (and (>= value -1000000000) (<= value 1000000000))))
+          (if (string=? op "/") (sheet/exact-divide x y) (option-some-of [:option :i64] value))
+          (option-none-of [:option :i64]))))))
 (defn formula-sheet [book :string id :string] [:option :string]
   (loop [pos (workbook/wf-sheet-start book)]
     (if (= pos (string-byte-length book)) (option-none-of [:option :string])
@@ -104,8 +105,9 @@
     (if (or (< n 2) (not (sheet/ascii-formula? formula 0 n))) (option-none-of [:option :i64])
       (if (= (string-index-of formula "=SUM(") 0) (formula-sum book id formula seen depth)
         (let [expr (string-substring formula 1 n) plus (string-index-of expr "+")
-              times (string-index-of expr "*") minus (sheet/binary-minus-index expr)]
+              times (string-index-of expr "*") slash (string-index-of expr "/") minus (sheet/binary-minus-index expr)]
           (cond (>= plus 0) (formula-binary book id expr plus "+" seen depth)
                 (>= times 0) (formula-binary book id expr times "*" seen depth)
+                (>= slash 0) (formula-binary book id expr slash "/" seen depth)
                 (>= minus 0) (formula-binary book id expr minus "-" seen depth)
                 :else (formula-token book id expr seen depth)))))))

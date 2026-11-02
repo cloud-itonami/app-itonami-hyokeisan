@@ -15,7 +15,7 @@ server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Quiet,d
 threading.Thread(target=server.serve_forever,daemon=True).start();pipe=browser.Pipe(str(chrome),profile)
 base=f'http://127.0.0.1:{server.server_port}/';key='itonami.hyokeisan.candidate.hs1'
 meta='[{"sheetId":0,"title":"A","color":"blue"},{"sheetId":"b","title":"B"}]'
-grid='{"B":[["x"],["","=9/2"]],"A":[["雪",""],["=A1+2","3"]]}'
+grid='{"B":[["x","=12/-3"],["","=9/2"]],"A":[["雪",""],["=A1+2","3"]]}'
 edn=lambda value:json.dumps(value,ensure_ascii=False)
 attrs={':sheet/type':[edn('Spreadsheet')],':sheet/id':[edn('sheet:book:demo')],':sheet/slug':[edn('demo')],
        ':sheet/title':[edn('予算')],':sheet/revision':['7'],':sheet/sheetsJson':[edn(meta)],
@@ -45,7 +45,7 @@ f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
 provenance='LE1|'+f('予算')+f(meta)+f(grid)
 a=f('n:0')+f('A')+cell(1,1,'雪')+cell(2,1,'=A1+2')+cell(2,2,'3')
-b=f('s:b')+f('B')+cell(1,1,'x')+cell(2,2,'=9/2')
+b=f('s:b')+f('B')+cell(1,1,'x')+cell(1,2,'=12/-3')+cell(2,2,'=9/2')
 book='HW3|'+f('予算')+f(provenance)+f(a)+f(b)
 expected='HU1|'+f(book)+f('n:0')+f('1')+f('1')
 pull_book='HW3|'+f('予算')+f('LE2|'+f(pull))+f(a)+f(b)
@@ -99,7 +99,7 @@ try:
  if stored()!=baseline:raise ValueError('invalid source changed baseline')
  choose('#legacy-grid',files['grid']);preview()
  if stored()!=baseline or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='雪':raise ValueError('preview mismatch')
- if not ev("['数式 2 件','互換性と計算結果は確認されていません','\"A\" (\"n:0\") A2','\"B\" (\"s:b\") B2'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('cross-sheet formula audit missing')
+ if not ev("['数式 3 件','互換性と計算結果は確認されていません','\"A\" (\"n:0\") A2','\"B\" (\"s:b\") B1','\"B\" (\"s:b\") B2'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('cross-sheet formula audit missing')
  ev("document.getElementById('backup-cancel').click()")
  if stored()!=baseline:raise ValueError('cancel changed baseline')
  ev("window.auditWorker=window.Worker;window.Worker=class extends window.auditWorker {postMessage(msg){if(msg.args[0]==='formula-audit'){this.terminate();queueMicrotask(()=>this.onerror(new Event('error')))}else super.postMessage(msg)}};document.getElementById('status').textContent='';document.getElementById('legacy-preview').click()")
@@ -127,9 +127,9 @@ try:
  wait("document.getElementById('status').textContent==='バックアップから復元しました。'",'commit')
  if stored()!=expected:raise ValueError('import differs from independent expected bytes')
  ev("document.querySelector('[data-k=sheet-next]').click()")
- wait("document.querySelector('[data-k=c0]')?.value==='x' && document.getElementById('status').textContent==='保存しました'",'second sheet')
+ wait("document.querySelector('[data-k=c0]')?.value==='x' && document.getElementById('status').textContent==='保存しました' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='#ERROR'",'second sheet division')
  saved=stored();ev('window.__reloadMarker=true');pipe.call('Page.reload',{},session);wait('window.__reloadMarker!==true','reload')
- wait("document.querySelector('[data-k=c0]')?.value==='x'",'second sheet reopen')
+ wait("document.querySelector('[data-k=c0]')?.value==='x' && document.querySelector('[data-k=c1]')?.value==='=12/-3' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='#ERROR'",'second sheet division reopen')
  if stored()!=saved or provenance not in saved:raise ValueError('reopen changed data or provenance')
  baseline=saved
  choose('#legacy-pull',files['bad-pull'])
@@ -149,7 +149,7 @@ try:
  pull_preview()
  if stored()!=baseline or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='雪':raise ValueError('pull preview mismatch')
  if not ev("document.getElementById('backup-label').textContent.includes('権限による欠落')"):raise ValueError('pull visibility notice missing')
- if not ev("['数式 2 件','\"A\" (\"n:0\") A2','\"B\" (\"s:b\") B2'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('pull formula audit missing')
+ if not ev("['数式 3 件','\"A\" (\"n:0\") A2','\"B\" (\"s:b\") B2'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('pull formula audit missing')
  if not ev("['bfixture','sheet:book:demo','版: 7'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('pull identity or revision missing')
  ev("document.getElementById('backup-cancel').click()")
  if stored()!=baseline:raise ValueError('pull cancel changed state')

@@ -45,12 +45,19 @@ fixture='''
        t4 (put! t3 "one" 201 2 "=A200+1")
        t5 (put! t4 "one" 202 1 "1.25") t6 (put! t5 "one" 202 2 "=SUM(A202:A202)")
        t7 (put! t6 "one" 203 1 "#DIV/0!") t8 (put! t7 "one" 203 2 "=SUM(A203:A203)")
-       t9 (put! t8 "one" 204 1 "=1/0") checked (put! t9 "one" 204 2 "=SUM(A204:A204)")]
+       t9 (put! t8 "one" 204 1 "=1/0") t10 (put! t9 "one" 204 2 "=SUM(A204:A204)")
+       d1 (put! t10 "one" 205 1 "=12/-3") d2 (put! d1 "one" 205 2 "=A205/2")
+       d3 (put! d2 "one" 205 3 "=3/2") d4 (put! d3 "one" 205 4 "=1/0")
+       d5 (put! d4 "one" 205 5 "=0/2") d6 (put! d5 "one" 205 6 "=999999*1000")
+       checked (put! d6 "one" 205 7 "=F205/2")]
   (if (and (wf-valid? checked) (result-is final "one" 50 27 7) (result-is final "one" 51 27 7)
            (result-is final "one" 52 27 -12) (result-is final "one" 53 27 13)
            (result-bad final "one" 55 27) (result-bad final "one" 57 27)
            (result-bad final "one" 58 27) (result-bad final "one" 59 27)
            (result-is final "two" 1 2 9) (result-is final "one" 2 2 64)
+           (result-is checked "one" 205 1 -4) (result-is checked "one" 205 2 -2)
+           (result-bad checked "one" 205 3) (result-bad checked "one" 205 4)
+           (result-is checked "one" 205 5 0) (result-is checked "one" 205 7 499999500)
            (result-is checked "one" 201 1 3) (result-bad checked "one" 201 2)
            (result-bad checked "one" 202 2) (result-bad checked "one" 203 2) (result-bad checked "one" 204 2)
            (= (formula-ref "A0") -1) (= (formula-ref "XFE1") -1)
@@ -58,6 +65,8 @@ fixture='''
 '''
 anchor='(+ (* col 26) (- c 64))'
 if source.count(anchor)!=1: raise SystemExit('column mutation anchor changed')
+div_anchor='(not (= (rem a b) 0))'
+if source.count(div_anchor)!=1: raise SystemExit('division mutation anchor changed')
 text_anchor='(sum-ignored-text? text)'
 if source.count(text_anchor)!=1: raise SystemExit('SUM text mutation anchor changed')
 def frame(value): return str(len(value.encode('utf-8'))) + ':' + value
@@ -66,7 +75,7 @@ sheet = frame('s') + frame('Sheet') + cell(1, 1, '1') + cell(1, 2, '=SUM(A1:A102
 sheet += ''.join(cell(row, 1, '1') for row in range(2, 1025))
 book = 'HW3|' + frame('Book') + frame('') + frame(sheet)
 stress = '\n(defn main [] :i64 (let [v (formula-cell ' + json.dumps(book) + ' "s" 1 2 "" 0)] (if (and (option-some?-of [:option :i64] v) (= (option-value-of [:option :i64] v 0) 1024)) 0 1)))\n'
-cases=[('formula',source,fixture,0),('column-mutant',source.replace(anchor,'(+ (* col 26) (- c 65))',1),fixture,1),('sum-text-mutant',source.replace(text_anchor,'(= 0 1)',1),fixture,1),('sum-1024',source,stress,0)]
+cases=[('formula',source,fixture,0),('column-mutant',source.replace(anchor,'(+ (* col 26) (- c 65))',1),fixture,1),('sum-text-mutant',source.replace(text_anchor,'(= 0 1)',1),fixture,1),('division-mutant',source.replace(div_anchor,'(= 0 1)',1),fixture,1),('sum-1024',source,stress,0)]
 def load(name,path):
  spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 mac=load('mac',amu/'scripts/seed/check-aiueos-user-macos-native.py');browser=load('browser',amu/'scripts/seed/check-wasm32-browser.py')
@@ -83,4 +92,4 @@ for name,_,_,expected in cases:
  if r.get('exit')!=0 or not re.search(rf'\{{:status :ok :result {expected}(?:\s|\}})',report):raise ValueError(name+': browser '+repr(r))
  results[name]={'report':report,'wasmSha256':hashlib.sha256((out/(name+'.wasm')).read_bytes()).hexdigest()}
 (out/'receipt.json').write_text(json.dumps({'sourceSha256':hashlib.sha256(source.encode()).hexdigest(),'compilerSha256':hashlib.sha256(compiler.read_bytes()).hexdigest(),'browser':version,'results':results,'limitations':['synthetic data','bounded formula subset','no QEMU or release']},indent=2)+'\n')
-print('PASS_WORKBOOK_FORMULA native and Chrome Wasm with column mutant')
+print('PASS_WORKBOOK_FORMULA native and Chrome Wasm with column/SUM/division mutants')
