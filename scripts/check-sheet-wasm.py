@@ -17,6 +17,8 @@ anchor = 'total (+ (option-value-of [:option :i64] a 0) (option-value-of [:optio
 if source.count(anchor) != 1: raise ValueError('mutation anchor changed')
 sub_anchor = '(if (string=? op "-") (- av bv) (* av bv))'
 if source.count(sub_anchor) != 1: raise ValueError('subtraction mutation anchor changed')
+text_anchor = '(sum-ignored-text? (cell-text s (+ (* r 4) c)))'
+if source.count(text_anchor) != 1: raise ValueError('SUM text mutation anchor changed')
 spec = importlib.util.spec_from_file_location('mac', amu / 'scripts/seed/check-aiueos-user-macos-native.py')
 mac = importlib.util.module_from_spec(spec); spec.loader.exec_module(mac)
 compiler = amu / 'seed/bootstrap/aarch64-macos/amu-full-root.macho'
@@ -26,6 +28,7 @@ cases = [
     ('mutant', source.replace(anchor, anchor.replace('total (+', 'total (-')), 1),
     ('sub-mutant', source.replace(sub_anchor, sub_anchor.replace('(- av bv)', '(+ av bv)'), 1), 1),
     ('mul-mutant', source.replace(sub_anchor, sub_anchor.replace('(* av bv)', '(+ av bv)'), 1), 1),
+    ('sum-text-mutant', source.replace(text_anchor, '(= 0 1)', 1), 1),
 ]
 for name, text, expected in cases:
     src = out / (name + '.kotoba'); src.write_text(text)

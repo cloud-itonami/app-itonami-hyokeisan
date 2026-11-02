@@ -39,24 +39,34 @@ fixture='''
        j (put! h "one" 56 27 "=AA55") k (put! j "one" 57 27 "=XFE1")
        l (put! k "one" 58 27 "=ああ1234") m (put! l "one" 59 27 "=A1+2*3")
        p (put! m "two" 1 1 "7") q (put! p "two" 1 2 "=A1+2")
-       r (fill q 0) final (put! r "one" 2 2 "=SUM(A100:A163)")]
-  (if (and (wf-valid? final) (result-is final "one" 50 27 7) (result-is final "one" 51 27 7)
+       r (fill q 0) final (put! r "one" 2 2 "=SUM(A100:A163)")
+       t1 (put! final "one" 200 1 "売上") t2 (put! t1 "one" 200 2 "3")
+       t3 (put! t2 "one" 201 1 "=SUM(A200:B200)")
+       t4 (put! t3 "one" 201 2 "=A200+1")
+       t5 (put! t4 "one" 202 1 "1.25") t6 (put! t5 "one" 202 2 "=SUM(A202:A202)")
+       t7 (put! t6 "one" 203 1 "#DIV/0!") t8 (put! t7 "one" 203 2 "=SUM(A203:A203)")
+       t9 (put! t8 "one" 204 1 "=1/0") checked (put! t9 "one" 204 2 "=SUM(A204:A204)")]
+  (if (and (wf-valid? checked) (result-is final "one" 50 27 7) (result-is final "one" 51 27 7)
            (result-is final "one" 52 27 -12) (result-is final "one" 53 27 13)
            (result-bad final "one" 55 27) (result-bad final "one" 57 27)
            (result-bad final "one" 58 27) (result-bad final "one" 59 27)
            (result-is final "two" 1 2 9) (result-is final "one" 2 2 64)
+           (result-is checked "one" 201 1 3) (result-bad checked "one" 201 2)
+           (result-bad checked "one" 202 2) (result-bad checked "one" 203 2) (result-bad checked "one" 204 2)
            (= (formula-ref "A0") -1) (= (formula-ref "XFE1") -1)
            (= (formula-ref "A1048577") -1)) 0 1)))
 '''
 anchor='(+ (* col 26) (- c 64))'
 if source.count(anchor)!=1: raise SystemExit('column mutation anchor changed')
+text_anchor='(sum-ignored-text? text)'
+if source.count(text_anchor)!=1: raise SystemExit('SUM text mutation anchor changed')
 def frame(value): return str(len(value.encode('utf-8'))) + ':' + value
 def cell(row, col, value): return frame(str(row)) + frame(str(col)) + frame(value)
 sheet = frame('s') + frame('Sheet') + cell(1, 1, '1') + cell(1, 2, '=SUM(A1:A1024)')
 sheet += ''.join(cell(row, 1, '1') for row in range(2, 1025))
 book = 'HW3|' + frame('Book') + frame('') + frame(sheet)
 stress = '\n(defn main [] :i64 (let [v (formula-cell ' + json.dumps(book) + ' "s" 1 2 "" 0)] (if (and (option-some?-of [:option :i64] v) (= (option-value-of [:option :i64] v 0) 1024)) 0 1)))\n'
-cases=[('formula',source,fixture,0),('column-mutant',source.replace(anchor,'(+ (* col 26) (- c 65))',1),fixture,1),('sum-1024',source,stress,0)]
+cases=[('formula',source,fixture,0),('column-mutant',source.replace(anchor,'(+ (* col 26) (- c 65))',1),fixture,1),('sum-text-mutant',source.replace(text_anchor,'(= 0 1)',1),fixture,1),('sum-1024',source,stress,0)]
 def load(name,path):
  spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 mac=load('mac',amu/'scripts/seed/check-aiueos-user-macos-native.py');browser=load('browser',amu/'scripts/seed/check-wasm32-browser.py')

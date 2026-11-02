@@ -62,6 +62,11 @@ try:
     input_('c8', '=é'); shown('c8', '#ERROR')
     input_('c0', '6'); shown('c4', '10'); shown('c2', '10')
     input_('c3', '=D1'); shown('c3', '#ERROR')
+    input_('c1', '売上'); shown('c2', '6'); shown('c4', '#ERROR')
+    input_('c1', '1.25'); shown('c2', '#ERROR')
+    input_('c1', '#DIV/0!'); shown('c2', '#ERROR')
+    input_('c1', '=1/0'); shown('c2', '#ERROR')
+    input_('c1', '4'); shown('c2', '10'); shown('c4', '10')
     saved = evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
     if not saved or '=SUM(A1:B1)' not in saved: raise ValueError('saved formula missing')
     # Simulate composition while an earlier field's view is in flight.

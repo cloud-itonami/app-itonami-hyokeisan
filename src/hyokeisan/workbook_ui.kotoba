@@ -143,5 +143,5 @@
               (sheet/el "div" (document-map :class (document-string "tools"))
                 (document-vector (ui-button "page-up" "上") (ui-button "page-down" "下")
                   (ui-button "page-left" "左") (ui-button "page-right" "右")))
-              (sheet/leaf "p" (document-map) "数式は整数・同一シート参照・+、-、*・SUM に対応します。SUM は保存済み4096セル、参照は32段までです。")
+              (sheet/leaf "p" (document-map) "数式は整数・同一シート参照・+、-、*・SUM に対応します。SUM は通常の文字を無視し、未対応の数値やエラーは拒否します。保存済み4096セル、参照は32段までです。")
               (sheet/el "main" (document-map :class (document-string "grid")) (ui-cells raw id grid top left 0 (document-vector))))))))))

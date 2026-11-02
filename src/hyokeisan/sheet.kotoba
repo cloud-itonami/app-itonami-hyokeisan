@@ -42,6 +42,18 @@
             (if (option-some?-of [:option :i64] v)
               (option-some-of [:option :i64] (* (if neg -1 1) (option-value-of [:option :i64] v 0)))
               (option-none-of [:option :i64]))))))))
+;; SUM may ignore clearly nonnumeric literal text, but must not silently skip
+;; formulas, error values, or unsupported numeric-looking representations.
+(defn sum-ignored-text? [s :string] :bool
+  (let [n (string-byte-length s)
+        start (loop [i 0]
+                (if (>= i n) i
+                  (let [c (string-code-point-at s i)]
+                    (if (or (= c 32) (= c 9) (= c 10) (= c 13)) (recur (+ i 1)) i))))]
+    (if (= start n) true
+      (let [c (string-code-point-at s start)]
+        (not (or (= c 61) (= c 35) (= c 43) (= c 45) (= c 46)
+                 (and (>= c 48) (<= c 57))))))))
 (defn eval-token [s :document token :string seen :i64] [:option :i64]
   (if (= (string-byte-length token) 0) (option-none-of [:option :i64])
     (let [i (ref-index token)]
@@ -50,7 +62,9 @@
   (if (> r r1) (option-some-of [:option :i64] total)
     (if (> c c1) (sum-range s (+ r 1) c0 r0 c0 r1 c1 seen total)
       (let [v (eval-cell s (+ (* r 4) c) seen)]
-        (if (not (option-some?-of [:option :i64] v)) (option-none-of [:option :i64])
+        (if (not (option-some?-of [:option :i64] v))
+          (if (sum-ignored-text? (cell-text s (+ (* r 4) c)))
+            (sum-range s r (+ c 1) r0 c0 r1 c1 seen total) (option-none-of [:option :i64]))
           (let [next (+ total (option-value-of [:option :i64] v 0))]
             (if (or (< next -1000000000) (> next 1000000000)) (option-none-of [:option :i64])
               (sum-range s r (+ c 1) r0 c0 r1 c1 seen next))))))))
@@ -150,6 +164,11 @@
         unicode-formula (step s "c11" "input" "=日本語")
         unicode-length (step s "c12" "input" "=ああ1234")
         unicode-ref (step s "c13" "input" "=é")
+        sum-text (step (step (step (init) "c0" "input" "売上") "c1" "input" "3") "c4" "input" "=SUM(A1:B1)")
+        sum-decimal (step sum-text "c0" "input" "1.25")
+        sum-error (step sum-text "c0" "input" "#DIV/0!")
+        sum-formula-error (step sum-text "c0" "input" "=1/0")
+        text-arithmetic (step sum-text "c5" "input" "=A1+1")
         bytes (option-value-of [:option :string] (snap-encode s) "")
         restored (snap-decode bytes)]
     (if (and (string=? (shown s 4) "7") (string=? (shown s 2) "7") (string=? (shown s 5) "#ERROR")
@@ -159,6 +178,9 @@
              (string=? (shown overflow 1) "#ERROR") (string=? (shown cyclic-product 10) "#ERROR")
              (string=? (shown unicode-formula 11) "#ERROR")
              (string=? (shown unicode-length 12) "#ERROR") (string=? (shown unicode-ref 13) "#ERROR")
+             (string=? (shown sum-text 4) "3") (string=? (shown sum-decimal 4) "#ERROR")
+             (string=? (shown sum-error 4) "#ERROR") (string=? (shown sum-formula-error 4) "#ERROR")
+             (string=? (shown text-arithmetic 5) "#ERROR")
              (= (ref-index "é") -1)
              (option-some?-of [:option :document] restored)
              (document-equal? s (option-value-of [:option :document] restored (document-null)))

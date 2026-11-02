@@ -76,9 +76,11 @@
               row (workbook/wf-number-frame sheet-raw rf 1048576)
               col (workbook/wf-number-frame sheet-raw cf 16384)]
           (if (and (>= row r0) (<= row r1) (>= col c0) (<= col c1))
-            (let [value (formula-value book id row col (workbook/wf-text sheet-raw vf) seen depth)
+            (let [text (workbook/wf-text sheet-raw vf)
+                  value (formula-value book id row col text seen depth)
                   next (+ total (option-value-of [:option :i64] value 0))]
-              (if (or (not (option-some?-of [:option :i64] value)) (< next -1000000000) (> next 1000000000))
+              (if (or (and (not (option-some?-of [:option :i64] value)) (not (sheet/sum-ignored-text? text)))
+                      (< next -1000000000) (> next 1000000000))
                 (option-none-of [:option :i64]) (recur (workbook/wf-end vf) (+ count 1) next)))
             (recur (workbook/wf-end vf) (+ count 1) total)))))))
 (defn formula-sum [book :string id :string expr :string seen :string depth :i64] [:option :i64]
