@@ -87,9 +87,19 @@ try:
     ev('window.__old=true');pipe.call('Page.reload',{},session);wait('window.__old !== true','AA50 reload')
     wait("document.querySelector('[data-k=c6]')?.value==='=A1+2'",'AA50 reopened')
     if ev('localStorage.getItem('+json.dumps(key)+')') != expected2 or ev("document.querySelector('[data-k=c6]').parentElement.querySelector('.value').textContent") != '5': raise ValueError('AA50 formula or other data changed')
+    # Exercise a visible SUM over 1,024 stored numeric cells, not merely a
+    # single reference in a workbook that happens to contain 1,024 cells.
+    sum_cells = cell(1, 1, '1') + cell(1, 2, '=SUM(A1:A1024)') + ''.join(cell(i, 1, '1') for i in range(2, 1025))
+    sum_sheet = frame('s1') + frame('Sheet One') + sum_cells
+    sum_book = 'HW3|' + frame('workbook') + frame('provenance unchanged') + frame(sum_sheet)
+    sum_state = 'HU1|' + frame(sum_book) + frame('s1') + frame('1') + frame('1')
+    ev('localStorage.setItem('+json.dumps(key)+','+json.dumps(sum_state)+');window.__old=true')
+    pipe.call('Page.reload',{},session);wait('window.__old !== true','SUM fixture reload')
+    wait("document.querySelector('[data-k=c1]')?.value==='=SUM(A1:A1024)' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='1024'",'1024-cell SUM')
+    if ev('localStorage.getItem('+json.dumps(key)+')') != sum_state: raise ValueError('SUM render changed workbook')
     requests=[e['params']['request']['url'] for e in pipe.events if e.get('method')=='Network.requestWillBeSent']
     if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
-    (out/'result.json').write_text(json.dumps({'status':'PASS','cells':1024,'otherSheetCell':'cross-page formula at AA50','firstSheet':'1024 cells unchanged','provenance':'unchanged','snapshotBytes':len(expected.encode()),'scope':'synthetic Chrome loopback'},indent=2)+'\n')
+    (out/'result.json').write_text(json.dumps({'status':'PASS','cells':1024,'otherSheetCell':'cross-page formula at AA50','firstSheet':'1024 cells unchanged','sum':'1024 numeric cells','provenance':'unchanged','snapshotBytes':len(expected.encode()),'scope':'synthetic Chrome loopback'},indent=2)+'\n')
     print('PASS_WORKBOOK_LARGE 1024 cells, second sheet, edit, save and reload')
 finally:
     pipe.close();server.shutdown();server.server_close()

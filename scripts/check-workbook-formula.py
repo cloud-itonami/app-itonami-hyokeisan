@@ -50,19 +50,25 @@ fixture='''
 '''
 anchor='(+ (* col 26) (- c 64))'
 if source.count(anchor)!=1: raise SystemExit('column mutation anchor changed')
-cases=[('formula',source,0),('column-mutant',source.replace(anchor,'(+ (* col 26) (- c 65))',1),1)]
+def frame(value): return str(len(value.encode('utf-8'))) + ':' + value
+def cell(row, col, value): return frame(str(row)) + frame(str(col)) + frame(value)
+sheet = frame('s') + frame('Sheet') + cell(1, 1, '1') + cell(1, 2, '=SUM(A1:A1024)')
+sheet += ''.join(cell(row, 1, '1') for row in range(2, 1025))
+book = 'HW3|' + frame('Book') + frame('') + frame(sheet)
+stress = '\n(defn main [] :i64 (let [v (formula-cell ' + json.dumps(book) + ' "s" 1 2 "" 0)] (if (and (option-some?-of [:option :i64] v) (= (option-value-of [:option :i64] v 0) 1024)) 0 1)))\n'
+cases=[('formula',source,fixture,0),('column-mutant',source.replace(anchor,'(+ (* col 26) (- c 65))',1),fixture,1),('sum-1024',source,stress,0)]
 def load(name,path):
  spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 mac=load('mac',amu/'scripts/seed/check-aiueos-user-macos-native.py');browser=load('browser',amu/'scripts/seed/check-wasm32-browser.py')
 compiler=amu/'seed/bootstrap/aarch64-macos/amu-full-root.macho';runs=[]
-for name,code,expected in cases:
- p=out/(name+'.kotoba');p.write_text(code+'\n'+fixture,encoding='utf-8')
+for name,code,case_fixture,expected in cases:
+ p=out/(name+'.kotoba');p.write_text(code+'\n'+case_fixture,encoding='utf-8')
  native=subprocess.run([str(amu/'bin/amu'),'run',str(p)],cwd=out,capture_output=True,text=True,timeout=120,check=True)
  if native.stdout.strip()!=str(expected):raise ValueError(name+': native result '+repr(native.stdout))
  mac.native_run(compiler,out,'compile',p.name,'--target','wasm32-browser','--output',name+'.wasm')
  runs.append((name,out/(name+'.wasm'),dict(fuel=25000000,allow=[],args=[],files={})))
 version,lines=browser.run_modules(str(chrome),out,runs,timeout=300);results={}
-for name,_,expected in cases:
+for name,_,_,expected in cases:
  r=lines[name];report=r.get('report') or ''
  if r.get('exit')!=0 or not re.search(rf'\{{:status :ok :result {expected}(?:\s|\}})',report):raise ValueError(name+': browser '+repr(r))
  results[name]={'report':report,'wasmSha256':hashlib.sha256((out/(name+'.wasm')).read_bytes()).hexdigest()}
