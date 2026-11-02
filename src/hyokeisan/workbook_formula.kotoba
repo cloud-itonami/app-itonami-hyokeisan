@@ -1,0 +1,109 @@
+(ns hyokeisan.workbook-formula
+  (:export [formula-cell])
+  (:require [hyokeisan.sheet :as sheet]
+            [hyokeisan.workbook :as workbook]))
+
+;; Current-sheet integer formulas over the complete sparse workbook. The
+;; supported grammar is one reference/literal, one binary + - *, or SUM of
+;; a rectangle. Unsupported syntax and bounded-resource refusals are errors.
+;; Workbook input must already have passed wf-valid? at the UI boundary.
+(defn formula-colscan [s :string i :i64 n :i64 col :i64] :i64
+  (if (>= i n) (+ (* col 16) i)
+    (let [c (string-code-point-at s i)]
+      (if (and (>= c 65) (<= c 90))
+        (let [next (+ (* col 26) (- c 64))]
+          (if (> next 16384) -1 (formula-colscan s (+ i 1) n next)))
+        (+ (* col 16) i)))))
+(defn formula-row [s :string i :i64 n :i64 row :i64] :i64
+  (if (= i n) row
+    (let [c (string-code-point-at s i)]
+      (if (or (< c 48) (> c 57)) -1
+        (let [next (+ (* row 10) (- c 48))]
+          (if (> next 1048576) -1 (formula-row s (+ i 1) n next)))))))
+(defn formula-ref [s :string] :i64
+  (let [n (string-byte-length s)]
+    (if (or (< n 2) (> n 10)) -1
+      (let [parsed (formula-colscan s 0 n 0)]
+        (if (< parsed 0) -1
+          (let [col (quot parsed 16) i (rem parsed 16)]
+            (if (or (< col 1) (= i 0) (>= i n)) -1
+              (let [row (formula-row s i n 0)]
+                (if (< row 1) -1 (+ (* row 16385) col))))))))))
+(defn formula-marker [row :i64 col :i64] :string
+  (string-concat "|" (string-concat (string-from-i64 row)
+    (string-concat "," (string-concat (string-from-i64 col) "|")))))
+(defn formula-value [book :string id :string row :i64 col :i64 text :string seen :string depth :i64] [:option :i64]
+  (let [n (string-byte-length text)]
+    (if (and (> n 0) (= (string-code-point-at text 0) 61))
+      (let [marker (formula-marker row col)]
+        (if (or (>= depth 32) (>= (string-index-of seen marker) 0)) (option-none-of [:option :i64])
+          (formula-eval book id text (string-concat seen marker) (+ depth 1))))
+      (sheet/parse-number text))))
+(defn formula-cell [book :string id :string row :i64 col :i64 seen :string depth :i64] [:option :i64]
+  (let [value (workbook/wf-find-sheet-cell book (workbook/wf-sheet-start book) id row col)]
+    (formula-value book id row col (option-value-of [:option :string] value "") seen depth)))
+(defn formula-token [book :string id :string token :string seen :string depth :i64] [:option :i64]
+  (if (= (string-byte-length token) 0) (option-none-of [:option :i64])
+    (let [ref (formula-ref token)]
+      (if (< ref 0) (sheet/parse-number token)
+        (formula-cell book id (quot ref 16385) (rem ref 16385) seen depth)))))
+(defn formula-binary [book :string id :string expr :string at :i64 op :string seen :string depth :i64] [:option :i64]
+  (let [n (string-byte-length expr)]
+    (if (or (<= at 0) (>= at (- n 1))) (option-none-of [:option :i64])
+      (let [a (formula-token book id (string-substring expr 0 at) seen depth)
+            b (formula-token book id (string-substring expr (+ at 1) n) seen depth)
+            x (option-value-of [:option :i64] a 0) y (option-value-of [:option :i64] b 0)
+            value (cond (string=? op "+") (+ x y) (string=? op "-") (- x y) :else (* x y))]
+        (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
+                 (>= value -1000000000) (<= value 1000000000))
+          (option-some-of [:option :i64] value) (option-none-of [:option :i64]))))))
+(defn formula-sheet [book :string id :string] [:option :string]
+  (loop [pos (workbook/wf-sheet-start book)]
+    (if (= pos (string-byte-length book)) (option-none-of [:option :string])
+      (let [frame (workbook/wf-read book pos) item (workbook/wf-text book frame)
+            key (workbook/wf-read item 0)]
+        (if (string=? (workbook/wf-text item key) id) (option-some-of [:option :string] item)
+          (recur (workbook/wf-end frame)))))))
+(defn formula-sum-scan [book :string id :string sheet-raw :string pos :i64
+                       r0 :i64 c0 :i64 r1 :i64 c1 :i64 seen :string depth :i64] [:option :i64]
+  ;; Scan stored cells once; missing cells contribute zero. Refuse after a
+  ;; bounded number of stored cells rather than iterating an enormous rectangle.
+  (loop [at pos count 0 total 0]
+    (if (= at (string-byte-length sheet-raw)) (option-some-of [:option :i64] total)
+      (if (>= count 4096) (option-none-of [:option :i64])
+        (let [rf (workbook/wf-read sheet-raw at) cf (workbook/wf-read sheet-raw (workbook/wf-end rf))
+              vf (workbook/wf-read sheet-raw (workbook/wf-end cf))
+              row (workbook/wf-number-frame sheet-raw rf 1048576)
+              col (workbook/wf-number-frame sheet-raw cf 16384)]
+          (if (and (>= row r0) (<= row r1) (>= col c0) (<= col c1))
+            (let [value (formula-value book id row col (workbook/wf-text sheet-raw vf) seen depth)
+                  next (+ total (option-value-of [:option :i64] value 0))]
+              (if (or (not (option-some?-of [:option :i64] value)) (< next -1000000000) (> next 1000000000))
+                (option-none-of [:option :i64]) (recur (workbook/wf-end vf) (+ count 1) next)))
+            (recur (workbook/wf-end vf) (+ count 1) total)))))))
+(defn formula-sum [book :string id :string expr :string seen :string depth :i64] [:option :i64]
+  (let [n (string-byte-length expr)]
+    (if (or (< n 8) (not (= (string-index-of expr "=SUM(") 0))
+            (not (= (string-code-point-at expr (- n 1)) 41))) (option-none-of [:option :i64])
+      (let [inside (string-substring expr 5 (- n 1)) colon (string-index-of inside ":")]
+        (if (or (<= colon 0) (>= colon (- (string-byte-length inside) 1))) (option-none-of [:option :i64])
+          (let [a (formula-ref (string-substring inside 0 colon))
+                b (formula-ref (string-substring inside (+ colon 1) (string-byte-length inside)))]
+            (if (or (< a 0) (< b 0) (> (quot a 16385) (quot b 16385)) (> (rem a 16385) (rem b 16385)))
+              (option-none-of [:option :i64])
+              (let [sheet (formula-sheet book id)]
+                (if (not (option-some?-of [:option :string] sheet)) (option-none-of [:option :i64])
+                  (let [sheet-raw (option-value-of [:option :string] sheet "")
+                        idf (workbook/wf-read sheet-raw 0) title (workbook/wf-read sheet-raw (workbook/wf-end idf))]
+                    (formula-sum-scan book id sheet-raw (workbook/wf-end title)
+                      (quot a 16385) (rem a 16385) (quot b 16385) (rem b 16385) seen depth)))))))))))
+(defn formula-eval [book :string id :string formula :string seen :string depth :i64] [:option :i64]
+  (let [n (string-byte-length formula)]
+    (if (or (< n 2) (not (sheet/ascii-formula? formula 0 n))) (option-none-of [:option :i64])
+      (if (= (string-index-of formula "=SUM(") 0) (formula-sum book id formula seen depth)
+        (let [expr (string-substring formula 1 n) plus (string-index-of expr "+")
+              times (string-index-of expr "*") minus (sheet/binary-minus-index expr)]
+          (cond (>= plus 0) (formula-binary book id expr plus "+" seen depth)
+                (>= times 0) (formula-binary book id expr times "*" seen depth)
+                (>= minus 0) (formula-binary book id expr minus "-" seen depth)
+                :else (formula-token book id expr seen depth)))))))

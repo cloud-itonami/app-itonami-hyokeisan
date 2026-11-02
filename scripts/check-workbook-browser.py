@@ -53,8 +53,9 @@ try:
     def click(key_):
         ev("document.querySelector('[data-k="+key_+"]').click()")
     def input_(key_, value):
+        before = snapshot()
         ev("(()=>{let e=document.querySelector('[data-k="+key_+"]');e.value="+json.dumps(value,ensure_ascii=False)+";e.dispatchEvent(new Event('input',{bubbles:true}));})()")
-        wait("document.getElementById('status').textContent==='保存しました' && localStorage.getItem("+json.dumps(key)+")?.includes("+json.dumps(value,ensure_ascii=False)+")", 'input '+key_)
+        wait("document.getElementById('status').textContent==='保存しました' && localStorage.getItem("+json.dumps(key)+") !== "+json.dumps(before,ensure_ascii=False)+" && localStorage.getItem("+json.dumps(key)+")?.includes("+json.dumps(value,ensure_ascii=False)+")", 'input '+key_)
     def snapshot(): return ev('localStorage.getItem('+json.dumps(key)+')')
     def reload():
         ev('window.__reloadMarker=true'); pipe.call('Page.reload', {}, session)
@@ -95,13 +96,22 @@ try:
     if ev("document.querySelector('[data-k=c0]').value") != '3' or ev("document.querySelector('[data-k=c15]').value") != '旧の右下😀' or ev("document.querySelector('[data-k=c1]').parentElement.querySelector('.value').textContent") != '6':
         raise ValueError('HS1 cells changed on conversion')
     click('sheet-add'); wait("document.body.innerText.includes('Sheet 1') && document.getElementById('status').textContent==='保存しました'", 'add sheet')
+    input_('c0', '3')
     click('page-right'); wait("document.querySelector('[data-k=c0]')?.getAttribute('aria-label')==='セル E1' && document.getElementById('status').textContent==='保存しました'", 'page right')
     input_('c0', '別シート E1')
+    input_('c1', '=A1+2')
+    wait("document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='5'", 'cross-page formula')
+    input_('c2', '=SUM(A1:D1)')
+    wait("document.querySelector('[data-k=c2]')?.parentElement.querySelector('.value')?.textContent==='3'", 'cross-page SUM')
+    input_('c3', '=H1')
+    wait("document.querySelector('[data-k=c3]')?.parentElement.querySelector('.value')?.textContent==='#ERROR'", 'cycle refusal')
     click('page-down'); wait("document.querySelector('[data-k=c15]')?.getAttribute('aria-label')==='セル H8' && document.getElementById('status').textContent==='保存しました'", 'page down')
     input_('c15', '別シート H8')
     click('sheet-prev'); wait("document.querySelector('[data-k=c0]')?.getAttribute('aria-label')==='セル A1' && document.querySelector('[data-k=c0]')?.value==='3' && document.getElementById('status').textContent==='保存しました'", 'original sheet')
     click('sheet-next'); wait("document.body.innerText.includes('Sheet 1') && document.getElementById('status').textContent==='保存しました'", 'second sheet')
+    input_('c0', '5')
     click('page-right'); wait("document.querySelector('[data-k=c0]')?.getAttribute('aria-label')==='セル E1' && document.querySelector('[data-k=c0]')?.value==='別シート E1' && document.getElementById('status').textContent==='保存しました'", 'offscreen cell retained')
+    wait("document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='7' && document.querySelector('[data-k=c2]')?.parentElement.querySelector('.value')?.textContent==='5'", 'offscreen dependency recalculated')
     click('page-down'); wait("document.querySelector('[data-k=c15]')?.value==='別シート H8' && document.getElementById('status').textContent==='保存しました'", 'second offscreen cell retained')
     saved = snapshot(); reload()
     wait("document.querySelector('[data-k=c15]')?.value==='別シート H8'", 'workbook reload')
@@ -162,7 +172,7 @@ try:
     wait("localStorage.getItem("+json.dumps(key)+")==="+json.dumps(saved,ensure_ascii=False)+" && document.getElementById('status').textContent==='バックアップから復元しました。'", 'prior workbook recovered')
     requests = [e['params']['request']['url'] for e in pipe.events if e.get('method') == 'Network.requestWillBeSent']
     if not requests or any(not u.startswith(base) for u in requests): raise ValueError('unexpected network request')
-    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['HS1 preview/cancel','backup and explicit upgrade','backup and primary failures','stale upgrade refusal','multiple sheets','offscreen cells','formula','save/reload','stale workbook tab','HU1 export','HU1 import preview/cancel/confirm and malformed refusal','old-app refusal','prior HS1 restore','prior workbook recovery','loopback only'],
+    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['HS1 preview/cancel','backup and explicit upgrade','backup and primary failures','stale upgrade refusal','multiple sheets','offscreen cells','cross-page formula and SUM','cycle refusal','save/reload','stale workbook tab','HU1 export','HU1 import preview/cancel/confirm and malformed refusal','old-app refusal','prior HS1 restore','prior workbook recovery','loopback only'],
         'limitations':['synthetic fixtures','no old-origin export','no real migration','formula subset','no QEMU or release qualification']},indent=2)+'\n')
     print('PASS_WORKBOOK_BROWSER explicit upgrade, editing, save/reload and rollback')
 finally:

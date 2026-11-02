@@ -14,7 +14,8 @@ def stage(root, entry=True):
     modules = [
         ('workbook.kotoba', r'\A\(ns\s+hyokeisan\.workbook\s*\(:export \[main\]\)\)', '(defn main [] :i64\n'),
         ('migrate_hs1.kotoba', r'\A\(ns\s+hyokeisan\.migrate-hs1\s*\(:export \[hs1-to-workbook\]\)\s*\(:require \[hyokeisan\.sheet :as sheet\]\s*\[hyokeisan\.workbook :as workbook\]\)\)', None),
-        ('workbook_ui.kotoba', r'\A\(ns\s+hyokeisan\.workbook-ui\s*\(:export \[ui-from-hs1 ui-view ui-step\]\)\s*\(:require \[hyokeisan\.sheet :as sheet\]\s*\[hyokeisan\.workbook :as workbook\]\s*\[hyokeisan\.migrate-hs1 :as migrate\]\)\)', None),
+        ('workbook_formula.kotoba', r'\A\(ns\s+hyokeisan\.workbook-formula\s*\(:export \[formula-cell\]\)\s*\(:require \[hyokeisan\.sheet :as sheet\]\s*\[hyokeisan\.workbook :as workbook\]\)\)', None),
+        ('workbook_ui.kotoba', r'\A\(ns\s+hyokeisan\.workbook-ui\s*\(:export \[ui-from-hs1 ui-view ui-step\]\)\s*\(:require \[hyokeisan\.sheet :as sheet\]\s*\[hyokeisan\.workbook :as workbook\]\s*\[hyokeisan\.migrate-hs1 :as migrate\]\s*\[hyokeisan\.workbook-formula :as formula\]\)\)', None),
     ]
     for filename, pattern, end in modules:
         module = (root / 'src/hyokeisan' / filename).read_text(encoding='utf-8')
@@ -23,7 +24,7 @@ def stage(root, entry=True):
             raise SystemExit('unexpected module ' + filename)
         if end:
             module = module[:module.index(end)]
-        for prefix in ('sheet/', 'workbook/', 'migrate/'):
+        for prefix in ('sheet/', 'workbook/', 'migrate/', 'formula/'):
             module = module.replace('(' + prefix, '(')
         source += '\n' + module
     if entry:

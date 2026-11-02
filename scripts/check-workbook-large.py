@@ -27,10 +27,10 @@ threading.Thread(target=server.serve_forever, daemon=True).start()
 pipe = browser.Pipe(str(chrome), profile)
 def frame(s): return str(len(s.encode('utf-8'))) + ':' + s
 def cell(row, col, value): return frame(str(row)) + frame(str(col)) + frame(value)
-def make_state(first, other="other-sheet😀", selected="s1", top="1", left="1"):
+def make_state(first, other="other-sheet😀", selected="s1", top="1", left="1", other_first=None):
     cells = ''.join(cell(i, 1, first if i == 1 else 'v' + str(i)) for i in range(1, 1025))
     first_sheet = frame('s1') + frame('Sheet One') + cells
-    second_sheet = frame('s2') + frame('Sheet Two') + cell(50, 27, other)
+    second_sheet = frame('s2') + frame('Sheet Two') + (cell(1, 1, other_first) if other_first is not None else '') + cell(50, 27, other)
     book = 'HW3|' + frame('workbook') + frame('provenance unchanged') + frame(first_sheet) + frame(second_sheet)
     return 'HU1|' + frame(book) + frame(selected) + frame(top) + frame(left)
 original, expected = make_state('v1'), make_state('edited')
@@ -69,6 +69,9 @@ try:
     # 1,024-cell first sheet and provenance byte-for-byte.
     ev("document.querySelector('[data-k=sheet-next]').click()")
     wait("document.body.innerText.includes('Sheet Two') && document.getElementById('status').textContent==='保存しました'",'second sheet')
+    before_second = ev('localStorage.getItem('+json.dumps(key)+')')
+    ev("(()=>{let e=document.querySelector('[data-k=c0]');e.value='3';e.dispatchEvent(new Event('input',{bubbles:true}));})()")
+    wait("localStorage.getItem("+json.dumps(key)+") !== "+json.dumps(before_second,ensure_ascii=False)+" && document.getElementById('status').textContent==='保存しました'", 'second sheet A1 saved')
     for label in ('E','I','M','Q','U','Y'):
         ev("document.querySelector('[data-k=page-right]').click()")
         wait("document.querySelector('[data-k=c0]')?.getAttribute('aria-label')==='セル "+label+"1' && document.getElementById('status').textContent==='保存しました'",'horizontal navigation '+label)
@@ -77,16 +80,16 @@ try:
         wait("document.querySelector('[data-k=c0]')?.getAttribute('aria-label')==='セル Y"+str(row)+"' && document.getElementById('status').textContent==='保存しました'",'vertical navigation '+str(row))
     if ev("document.querySelector('[data-k=c6]').getAttribute('aria-label')") != 'セル AA50' or ev("document.querySelector('[data-k=c6]').value") != 'other-sheet😀':
         raise ValueError('AA50 not accessible')
-    ev("(()=>{let e=document.querySelector('[data-k=c6]');e.value='updated AA50';e.dispatchEvent(new Event('input',{bubbles:true}));})()")
-    expected2=make_state('edited','updated AA50','s2','49','25')
-    wait("localStorage.getItem("+json.dumps(key)+")?.includes('updated AA50') && document.getElementById('status').textContent==='保存しました'",'AA50 saved')
+    ev("(()=>{let e=document.querySelector('[data-k=c6]');e.value='=A1+2';e.dispatchEvent(new Event('input',{bubbles:true}));})()")
+    expected2=make_state('edited','=A1+2','s2','49','25','3')
+    wait("localStorage.getItem("+json.dumps(key)+")?.includes('=A1+2') && document.getElementById('status').textContent==='保存しました'",'AA50 saved')
     if ev('localStorage.getItem('+json.dumps(key)+')') != expected2: raise ValueError('AA50 edit wrote wrong cell or changed other data')
     ev('window.__old=true');pipe.call('Page.reload',{},session);wait('window.__old !== true','AA50 reload')
-    wait("document.querySelector('[data-k=c6]')?.value==='updated AA50'",'AA50 reopened')
-    if ev('localStorage.getItem('+json.dumps(key)+')') != expected2: raise ValueError('AA50 edit changed other data')
+    wait("document.querySelector('[data-k=c6]')?.value==='=A1+2'",'AA50 reopened')
+    if ev('localStorage.getItem('+json.dumps(key)+')') != expected2 or ev("document.querySelector('[data-k=c6]').parentElement.querySelector('.value').textContent") != '5': raise ValueError('AA50 formula or other data changed')
     requests=[e['params']['request']['url'] for e in pipe.events if e.get('method')=='Network.requestWillBeSent']
     if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
-    (out/'result.json').write_text(json.dumps({'status':'PASS','cells':1024,'otherSheetCell':'edited at AA50','firstSheet':'1024 cells unchanged','provenance':'unchanged','snapshotBytes':len(expected.encode()),'scope':'synthetic Chrome loopback'},indent=2)+'\n')
+    (out/'result.json').write_text(json.dumps({'status':'PASS','cells':1024,'otherSheetCell':'cross-page formula at AA50','firstSheet':'1024 cells unchanged','provenance':'unchanged','snapshotBytes':len(expected.encode()),'scope':'synthetic Chrome loopback'},indent=2)+'\n')
     print('PASS_WORKBOOK_LARGE 1024 cells, second sheet, edit, save and reload')
 finally:
     pipe.close();server.shutdown();server.server_close()

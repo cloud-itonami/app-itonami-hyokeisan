@@ -2,7 +2,8 @@
   (:export [ui-from-hs1 ui-view ui-step])
   (:require [hyokeisan.sheet :as sheet]
             [hyokeisan.workbook :as workbook]
-            [hyokeisan.migrate-hs1 :as migrate]))
+            [hyokeisan.migrate-hs1 :as migrate]
+            [hyokeisan.workbook-formula :as formula]))
 
 ;; The browser adapter stores this view state as well as the entire HW3 book.
 ;; Sheet and page navigation live here; the host only renders the returned tree.
@@ -104,13 +105,17 @@
         (document-vector-conj acc (document-string (option-value-of [:option :string] value "")))))))
 (defn ui-button [key :string label :string] :document
   (sheet/leaf "button" (document-map :type (document-string "button") :data-k (document-string key)) label))
-(defn ui-cells [grid :document top :i64 left :i64 i :i64 acc :document] :document
+(defn ui-cells [book :string id :string grid :document top :i64 left :i64 i :i64 acc :document] :document
   (if (= i 16) acc
     (let [label (string-concat (ui-col-name (+ left (rem i 4))) (string-from-i64 (+ top (quot i 4))))
           text (sheet/cell-text grid i)
-          display (if (and (= top 1) (= left 1)) (sheet/shown grid i)
-                    (if (and (> (string-byte-length text) 0) (= (string-code-point-at text 0) 61)) "#未計算" text))]
-      (ui-cells grid top left (+ i 1)
+          result (if (and (> (string-byte-length text) 0) (= (string-code-point-at text 0) 61))
+                   (formula/formula-cell book id (+ top (quot i 4)) (+ left (rem i 4)) "" 0)
+                   (option-none-of [:option :i64]))
+          display (if (and (> (string-byte-length text) 0) (= (string-code-point-at text 0) 61))
+                    (if (option-some?-of [:option :i64] result)
+                      (string-from-i64 (option-value-of [:option :i64] result 0)) "#ERROR") text)]
+      (ui-cells book id grid top left (+ i 1)
         (document-vector-conj acc
           (sheet/el "div" (document-map :class (document-string "cell"))
             (document-vector (sheet/leaf "span" (document-map :class (document-string "label")) label)
@@ -138,5 +143,5 @@
               (sheet/el "div" (document-map :class (document-string "tools"))
                 (document-vector (ui-button "page-up" "上") (ui-button "page-down" "下")
                   (ui-button "page-left" "左") (ui-button "page-right" "右")))
-              (sheet/leaf "p" (document-map) "数式計算は各シートの A1:D4 内の対応形式に限ります。範囲外は未計算です。")
-              (sheet/el "main" (document-map :class (document-string "grid")) (ui-cells grid top left 0 (document-vector))))))))))
+              (sheet/leaf "p" (document-map) "数式は整数・同一シート参照・+、-、*・SUM に対応します。SUM は保存済み4096セル、参照は32段までです。")
+              (sheet/el "main" (document-map :class (document-string "grid")) (ui-cells raw id grid top left 0 (document-vector))))))))))
