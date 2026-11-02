@@ -91,6 +91,7 @@
         (el "div" (document-map :class (document-string "cell"))
           (document-vector (leaf "span" (document-map :class (document-string "label")) (name-cell i))
             (leaf "input" (document-map :data-k (document-string (index-key i)) :type (document-string "text")
+                                       :aria-label (document-string (string-concat "セル " (name-cell i)))
                                        :value (document-string (cell-text s i))) "")
             (leaf "span" (document-map :class (document-string "value")) (shown s i))))))))
 (defn view [s :document] :document

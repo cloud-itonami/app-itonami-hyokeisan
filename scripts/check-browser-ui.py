@@ -43,6 +43,8 @@ try:
     def shown(cell, value):
         wait("document.querySelector('[data-k="+cell+"]')?.parentElement.querySelector('.value')?.textContent === "+json.dumps(value,ensure_ascii=False), cell + ' result')
     wait("document.querySelector('[data-k=c0]') !== null", 'initial grid')
+    if evaluate("document.querySelector('[data-k=c0]').getAttribute('aria-label')") != 'セル A1': raise ValueError('A1 lacks accessible name')
+    if evaluate("document.querySelector('[data-k=c15]').getAttribute('aria-label')") != 'セル D4': raise ValueError('D4 lacks accessible name')
     evaluate("document.querySelector('[data-k=c0]').click()")
     time.sleep(1)
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") is not None: raise ValueError('focusing input wrote state')

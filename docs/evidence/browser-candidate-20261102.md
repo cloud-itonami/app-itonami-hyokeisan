@@ -43,3 +43,10 @@ Reproduce using `scripts/check-sheet-wasm.py AMU_DIR NEW_OUTPUT CHROME`,
 Cross-browser, accessibility, worst-case calculation/performance, interruption
 and crash recovery, actual old data migration, Itonami OS/QEMU, fleet,
 distribution and production qualification remain open.
+
+A follow-up carries Kotoba-generated cell names through the `BV2|` view
+protocol. Chrome confirmed the A1 and D4 DOM accessible names and reran the
+UI/refusal checks; the native/Wasm model and arithmetic mutant also passed.
+This does not establish keyboard or screen-reader accessibility. Follow-up
+browser Wasm SHA-256:
+`36f5f24ef75c7e2ff3a26e92f4606b5b3c47d98712dd6d109b919049878bec20`.
