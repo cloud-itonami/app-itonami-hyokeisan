@@ -276,10 +276,20 @@ try:
     wait("document.getElementById('status')?.textContent.includes('開けません')", 'digest refusal')
     if evaluate("document.querySelector('[data-k=c0]') !== null || localStorage.getItem('itonami.hyokeisan.candidate.hs1') !== null"):
         raise ValueError('tampered candidate ran or wrote state')
+    tampered_policy = out / 'tampered-policy'
+    shutil.copytree(site, tampered_policy)
+    policy_bundle = tampered_policy / 'bundle.js'
+    content, count = __import__('re').subn(r'(export const draftPolicySha256 = ")[0-9a-f]{64}(";)', r'\g<1>' + '0' * 64 + r'\g<2>', policy_bundle.read_text())
+    if count != 1: raise ValueError('policy digest mutation anchor')
+    policy_bundle.write_text(content)
+    pipe.call('Page.navigate', {'url': f'http://127.0.0.1:{server.server_port}/tampered-policy/index.html'}, session)
+    wait("document.getElementById('status')?.textContent.includes('開けません')", 'policy digest refusal')
+    if evaluate("document.querySelector('[data-k=c0]') !== null || localStorage.getItem('itonami.hyokeisan.candidate.hs1') !== null"):
+        raise ValueError('tampered policy candidate ran or wrote state')
     requests = [e['params']['request']['url'] for e in pipe.events if e.get('method') == 'Network.requestWillBeSent']
     if any(u.split('?', 1)[0].endswith('/favicon.ico') for u in requests): raise ValueError('unversioned favicon request')
     if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
-    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-both-write-failures-conflict','grid','addition','subtraction-multiplication-division-reload','unicode-formula-save-reload','sum','recalculate','cycle','save-reload','synthetic-composition-with-concurrent-redraw','oversized-refusal','concurrent-tab-refusal','worker-timeout-retry','hidden-timeout-retry','worker-interruption-retry','storage-failure-retry','multiple-unsaved-fields','corrupt-refusal','future-HW3-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
+    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-both-write-failures-conflict','grid','addition','subtraction-multiplication-division-reload','unicode-formula-save-reload','sum','recalculate','cycle','save-reload','synthetic-composition-with-concurrent-redraw','oversized-refusal','concurrent-tab-refusal','worker-timeout-retry','hidden-timeout-retry','worker-interruption-retry','storage-failure-retry','multiple-unsaved-fields','corrupt-refusal','future-HW3-refusal','digest-refusal','policy-digest-refusal','loopback-only']},indent=2)+'\n')
     print('PASS_HYOKEISAN_BROWSER_UI grid, calculation, save and refusal')
 finally:
     pipe.close(); server.shutdown(); server.server_close()
