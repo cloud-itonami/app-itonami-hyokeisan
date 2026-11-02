@@ -43,6 +43,9 @@ try:
     def shown(cell, value):
         wait("document.querySelector('[data-k="+cell+"]')?.parentElement.querySelector('.value')?.textContent === "+json.dumps(value,ensure_ascii=False), cell + ' result')
     wait("document.querySelector('[data-k=c0]') !== null", 'initial grid')
+    evaluate("document.querySelector('[data-k=c0]').click()")
+    time.sleep(1)
+    if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") is not None: raise ValueError('focusing input wrote state')
     input_('c0', '3'); shown('c0', '3')
     input_('c1', '4'); shown('c1', '4')
     input_('c4', '=A1+B1'); shown('c4', '7')
