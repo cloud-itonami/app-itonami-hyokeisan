@@ -338,6 +338,7 @@ function exportBackup() {
   fail('バックアップのダウンロードを開始しました。');
 }
 async function previewBackup(candidate, label) {
+  const base = snapshot, basePersisted = persisted;
   if (typeof candidate !== 'string' || !(candidate.startsWith('HS1|') || candidate.startsWith('HU1|') || candidate.startsWith('HX1|')) || encoder.encode(candidate).length > LIMIT) throw Error('invalid backup');
   const protectedState = await run(['protect', candidate]);
   if (!protectedState.endsWith('\n')) throw Error('protect refusal');
@@ -350,8 +351,9 @@ async function previewBackup(candidate, label) {
       (audit.entries.length ? '\n数式の位置（先頭 ' + audit.entries.length + ' 件）:\n' + audit.entries.join('\n') : '') +
       (audit.count > audit.entries.length ? '\nほか ' + (audit.count - audit.entries.length) + ' 件。' : '');
   }
+  if (draftBlocked || edits.size || snapshot !== base || persisted !== basePersisted) throw Error('preview changed');
   proposedBackup = candidate;
-  proposedBase = snapshot; proposedPersisted = persisted;
+  proposedBase = base; proposedPersisted = basePersisted;
   document.getElementById('backup-label').textContent = label + formulaNotice;
   backupPreview.replaceChildren(tree);
   backupDialog.showModal();

@@ -102,6 +102,16 @@ try:
  if not ev("['数式 3 件','互換性と計算結果は確認されていません','\"A\" (\"n:0\") A2','\"B\" (\"s:b\") B1','\"B\" (\"s:b\") B2'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('cross-sheet formula audit missing')
  ev("document.getElementById('backup-cancel').click()")
  if stored()!=baseline:raise ValueError('cancel changed baseline')
+ # Input captured while the formula audit is in flight must prevent an
+ # outdated preview from opening. The input is then saved through the queue.
+ ev("window.raceWorker=window.Worker;window.auditPending=false;window.Worker=class extends window.raceWorker {postMessage(msg,...rest){if(msg.args[0]==='formula-audit'){window.auditPending=true;setTimeout(()=>super.postMessage(msg,...rest),1500)}else super.postMessage(msg,...rest)}};document.getElementById('status').textContent='';document.getElementById('legacy-preview').click()")
+ wait('window.auditPending === true','preview audit pending')
+ ev("(()=>{let e=document.querySelector('[data-k=c0]');e.value='プレビュー中の入力';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
+ wait("document.getElementById('backup-dialog').open || localStorage.getItem("+json.dumps(key)+")?.includes('プレビュー中の入力')",'preview input race')
+ if ev("document.getElementById('backup-dialog').open"):raise ValueError('stale same-tab preview opened')
+ wait("localStorage.getItem("+json.dumps(key)+")?.includes('プレビュー中の入力') && document.getElementById('status').textContent==='保存しました'",'pending edit saved')
+ ev("window.Worker=window.raceWorker;(()=>{let e=document.querySelector('[data-k=c0]');e.value='既存';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
+ wait('localStorage.getItem('+json.dumps(key)+') === '+json.dumps(baseline,ensure_ascii=False)+" && document.getElementById('status').textContent==='保存しました'",'restore baseline')
  ev("window.auditWorker=window.Worker;window.Worker=class extends window.auditWorker {postMessage(msg){if(msg.args[0]==='formula-audit'){this.terminate();queueMicrotask(()=>this.onerror(new Event('error')))}else super.postMessage(msg)}};document.getElementById('status').textContent='';document.getElementById('legacy-preview').click()")
  wait("document.getElementById('status').textContent.includes('旧データを読み込めません')",'audit failure refusal')
  if stored()!=baseline or ev("document.getElementById('backup-dialog').open"):raise ValueError('audit failure allowed import')
