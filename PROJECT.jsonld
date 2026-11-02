@@ -1,10 +1,10 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "@id": "https://kazu.itonami.app",
+  "@id": "https://hyokeisan.itonami.app",
   "name": "itonami-hyokeisan",
   "description": "itonami Hyokeisan（表計算）: Google Sheets v4 + Microsoft Graph (workbook) compatible spreadsheet API over kotoba datomic (graph sheets-v1). Third vertical of the workspace-compat program (ADR-2606010500).",
-  "url": "https://kazu.itonami.app",
+  "url": "https://hyokeisan.itonami.app",
   "applicationCategory": "Productivity",
   "operatingSystem": "Kubernetes",
   "author": { "@type": "Organization", "name": "itonami", "url": "https://itonami.app" },
@@ -24,7 +24,7 @@
       "description": "Cloudflare Worker edge serving Google Sheets v4 (/v4/spreadsheets) and Microsoft Graph workbook (/v1.0/me/drive/.../workbook) REST skins, translating to canonical XRPC.",
       "applicationCategory": "Edge",
       "programmingLanguage": "TypeScript",
-      "runtimePlatform": "Cloudflare Worker (kazu.itonami.app)"
+      "runtimePlatform": "Cloudflare Worker (hyokeisan.itonami.app)"
     }
   ],
   "isBasedOn": "90-docs/adr/2606010500-workspace-compat-datomic-schema.md"
