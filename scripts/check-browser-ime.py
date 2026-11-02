@@ -43,6 +43,13 @@ try:
  wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('日本語') && document.getElementById('status').textContent === '保存しました'",'committed IME')
  result={'status':'PASS_CDP_SYNTHETIC_IME','mid':mid,'final':{'value':ev("document.querySelector('[data-k=c0]').value"),'events':ev('window.imeEvents')},'limitations':['CDP-generated browser events; not a physical OS IME test','loopback local candidate; not a release']}
  if result['final']['value'] != '日本語': raise ValueError('composition commit mismatch')
+ ev("document.querySelector('[data-k=c0]').focus();document.querySelector('[data-k=c0]').setSelectionRange(3,3)")
+ pipe.call('Input.dispatchKeyEvent',{'type':'keyDown','key':'Enter','code':'Enter','text':'\r','unmodifiedText':'\r','windowsVirtualKeyCode':13,'nativeVirtualKeyCode':13},session)
+ pipe.call('Input.dispatchKeyEvent',{'type':'keyUp','key':'Enter','code':'Enter','windowsVirtualKeyCode':13,'nativeVirtualKeyCode':13},session)
+ wait("document.querySelector('[data-k=c0]')?.value === '日本語\\n' && document.getElementById('status').textContent==='保存しました'",'textarea enter')
+ pipe.call('Input.insertText',{'text':'二行目'},session)
+ wait("document.querySelector('[data-k=c0]')?.value === '日本語\\n二行目' && localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.startsWith('HX1|') && document.getElementById('status').textContent==='保存しました'",'multiline saved')
+ result['multiline']=ev("document.querySelector('[data-k=c0]').value")
  requests=[e['params']['request']['url'] for e in pipe.events if e.get('method')=='Network.requestWillBeSent']
  if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
  (out/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(json.dumps(result,ensure_ascii=False))

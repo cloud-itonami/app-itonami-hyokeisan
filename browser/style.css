@@ -4,9 +4,9 @@ body { margin: 0; }
 .sheet { max-width: 70rem; margin: auto; padding: 1rem; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(9rem, 1fr)); gap: .5rem; overflow: auto; }
 .cell { display: flex; flex-direction: column; gap: .25rem; background: #fff; padding: .5rem; }
-.cell input { min-width: 0; padding: .4rem; }
+.cell input, .cell textarea { min-width: 0; padding: .4rem; }
 .label { font-weight: bold; }
-.value { color: #3f536c; min-height: 1.4em; }
+.value { white-space: pre-wrap; overflow-wrap: anywhere; color: #3f536c; min-height: 1.4em; }
 
 dialog { width: min(52rem, 90vw); max-height: 85vh; border: 1px solid #808891; }
 dialog::backdrop { background: #0008; }

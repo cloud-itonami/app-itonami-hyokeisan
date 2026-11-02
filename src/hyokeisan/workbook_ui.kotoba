@@ -119,7 +119,7 @@
         (document-vector-conj acc
           (sheet/el "div" (document-map :class (document-string "cell"))
             (document-vector (sheet/leaf "span" (document-map :class (document-string "label")) label)
-              (sheet/leaf "input" (document-map :data-k (document-string (sheet/index-key i)) :type (document-string "text")
+              (sheet/leaf "textarea" (document-map :data-k (document-string (sheet/index-key i))
                 :aria-label (document-string (string-concat "セル " label)) :value (document-string text)) "")
               (sheet/leaf "span" (document-map :class (document-string "value")) display))))))))
 (defn ui-view [state :string] [:option :document]
