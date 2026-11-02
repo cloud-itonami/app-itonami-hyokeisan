@@ -61,6 +61,66 @@ try:
     shown('c0', '6')
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('oversized input clobbered storage')
     pipe.call('Page.reload', {}, session); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR')
+    # A downloaded HS1 can be explicitly reviewed and restored; invalid input
+    # and storage failure must never replace the current document.
+    download = out / 'downloads'
+    download.mkdir()
+    pipe.call('Browser.setDownloadBehavior', {'behavior': 'allow', 'downloadPath': str(download)})
+    evaluate("document.querySelector('[data-k=backup-export]').click()")
+    end = time.time() + 90
+    while time.time() < end and not (download / 'hyokeisan-backup.hs1').exists(): time.sleep(.2)
+    exported = download / 'hyokeisan-backup.hs1'
+    if not exported.exists() or exported.read_text() != saved: raise ValueError('backup download mismatch')
+    evaluate("(()=>{let e=document.querySelector('[data-k=c0]');e.value='バックアップ前';e.dispatchEvent(new Event('input',{bubbles:true}));})()")
+    wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('バックアップ前')", 'edit before import')
+    prior = evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
+    def select_file(path):
+        pipe.call('DOM.enable', {}, session)
+        root = pipe.call('DOM.getDocument', {}, session)['root']['nodeId']
+        node = pipe.call('DOM.querySelector', {'nodeId': root, 'selector': '#backup-file'}, session)['nodeId']
+        pipe.call('DOM.setFileInputFiles', {'nodeId': node, 'files': [str(path)]}, session)
+    select_file(exported)
+    wait("document.getElementById('backup-dialog').open", 'backup preview')
+    if evaluate("document.querySelector('#backup-preview [data-k=c0]')?.value") != '6': raise ValueError('preview mismatch')
+    evaluate("document.getElementById('backup-cancel').click()")
+    if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != prior: raise ValueError('cancel changed storage')
+    # Reset the input, as the user action does before selecting a file again.
+    evaluate("document.getElementById('backup-file').value=''")
+    select_file(exported)
+    wait("document.getElementById('backup-dialog').open", 'backup preview again')
+    evaluate("document.getElementById('backup-confirm').click()")
+    wait("document.getElementById('status').textContent === 'バックアップから復元しました。'", 'restore backup')
+    if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('restore mismatch')
+    if not evaluate("Object.keys(localStorage).some(k=>k.startsWith('itonami.hyokeisan.candidate.hs1.preimport.') && localStorage.getItem(k).includes('バックアップ前'))"): raise ValueError('missing prior backup')
+    evaluate("document.querySelector('[data-k=backup-restore]').click()")
+    wait("document.getElementById('backup-dialog').open", 'prior backup preview')
+    evaluate("document.getElementById('backup-confirm').click()")
+    wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('バックアップ前')", 'restore prior')
+    bad = out / 'bad.hs1'
+    bad.write_bytes(b'HS1|bad')
+    evaluate("document.getElementById('backup-file').value=''")
+    select_file(bad)
+    wait("document.getElementById('status').textContent.includes('バックアップを読み込めません')", 'bad backup refusal')
+    if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != prior or evaluate("document.getElementById('backup-dialog').open"): raise ValueError('bad import changed state')
+    for name, contents in [('utf8.hs1', b'HS1|\xff'), ('large.hs1', b'HS1|' + b'x' * 35000), ('unknown.hs1', b'OLD|document')]:
+        invalid = out / name
+        invalid.write_bytes(contents)
+        evaluate("document.getElementById('status').textContent='' ; document.getElementById('backup-file').value=''")
+        select_file(invalid)
+        wait("document.getElementById('status').textContent.includes('バックアップを読み込めません')", name + ' refusal')
+        if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != prior or evaluate("document.getElementById('backup-dialog').open"): raise ValueError(name + ' changed state')
+    evaluate("document.getElementById('backup-file').value=''")
+    select_file(exported)
+    wait("document.getElementById('backup-dialog').open", 'quota backup preview')
+    evaluate("window.savedSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k.includes('.preimport.'))throw Error('quota');return window.savedSetItem.call(this,k,v)};document.getElementById('backup-confirm').click()")
+    wait("document.getElementById('status').textContent.includes('復元できませんでした')", 'backup quota refusal')
+    if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != prior: raise ValueError('quota import changed state')
+    evaluate("Storage.prototype.setItem=window.savedSetItem")
+    # Return to the preexisting test fixture without modifying the product data path.
+    evaluate("document.querySelector('[data-k=backup-restore]').click()")
+    wait("document.getElementById('backup-dialog').open", 'return backup preview')
+    evaluate("document.getElementById('backup-confirm').click()")
+    wait("document.querySelector('[data-k=c0]')?.value === '6'", 'return to test state')
     second = pipe.call('Target.createTarget', {'url': url})['targetId']
     second_session = pipe.call('Target.attachToTarget', {'targetId': second, 'flatten': True})['sessionId']
     def second_eval(expr):
@@ -70,7 +130,19 @@ try:
     end = time.time() + 90
     while time.time() < end and second_eval("document.querySelector('[data-k=c0]')?.value") != '6': time.sleep(.2)
     if second_eval("document.querySelector('[data-k=c0]')?.value") != '6': raise TimeoutError('second tab')
+    pipe.call('DOM.enable', {}, second_session)
+    second_root = pipe.call('DOM.getDocument', {}, second_session)['root']['nodeId']
+    second_file = pipe.call('DOM.querySelector', {'nodeId': second_root, 'selector': '#backup-file'}, second_session)['nodeId']
+    pipe.call('DOM.setFileInputFiles', {'nodeId': second_file, 'files': [str(exported)]}, second_session)
+    end = time.time() + 90
+    while time.time() < end and not second_eval("document.getElementById('backup-dialog').open"): time.sleep(.2)
+    if not second_eval("document.getElementById('backup-dialog').open"): raise TimeoutError('second tab backup preview')
     input_('c0', '8'); shown('c4', '12')
+    saved_after_edit = evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
+    second_eval("document.getElementById('backup-confirm').click()")
+    end = time.time() + 90
+    while time.time() < end and not second_eval("document.getElementById('status')?.textContent.includes('復元できませんでした')"): time.sleep(.2)
+    if not second_eval("document.getElementById('status')?.textContent.includes('別のタブ')") or evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved_after_edit: raise ValueError('conflicting import clobbered state')
     second_eval("(()=>{let e=document.querySelector('[data-k=c0]');e.value='77';e.dispatchEvent(new Event('input',{bubbles:true}));})()")
     end = time.time() + 90
     while time.time() < end and not second_eval("document.getElementById('status')?.textContent.includes('保存できませんでした')"): time.sleep(.2)
@@ -113,7 +185,7 @@ try:
         raise ValueError('tampered candidate ran or wrote state')
     requests = [e['params']['request']['url'] for e in pipe.events if e.get('method') == 'Network.requestWillBeSent']
     if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
-    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['grid','addition','sum','recalculate','cycle','save-reload','oversized-refusal','concurrent-tab-refusal','worker-timeout','worker-interruption','storage-failure','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
+    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-quota-conflict','grid','addition','sum','recalculate','cycle','save-reload','oversized-refusal','concurrent-tab-refusal','worker-timeout','worker-interruption','storage-failure','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
     print('PASS_HYOKEISAN_BROWSER_UI grid, calculation, save and refusal')
 finally:
     pipe.close(); server.shutdown(); server.server_close()
