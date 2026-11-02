@@ -21,3 +21,16 @@ Reproduce with `python3 scripts/check-grid-wasm.py /path/to/amu /new/output/dire
 on macOS ARM64, using the pinned Amu revision. UI, save/reload, concurrent writes,
 crash recovery, portable byte encoding, old-origin import, QEMU and release
 qualification remain open.
+
+## Cross-target probe
+
+The same source compiled with the same full root to x86_64-linux static ELF
+(SHA-256 `9336c0d932c0418d6e1c10924f34defee5828b1ec619a00c28d06013c1d7e4e7`).
+Running it through an existing amd64 container on an ARM64 Podman VM failed
+before the program ran: `kexe-runtime: resource limit setup failed`, exit 1.
+The cause is unconfirmed; this does not test Itonami OS.
+
+The `x86_64-aiueos-user-v1` compile of that same source refused `grid-new`
+(vector return, `rt=4`) with `E7102 unsupported object profile; detail 1`.
+No Itonami OS or QEMU execution was performed. Browser and OS target parity
+therefore remains open.
