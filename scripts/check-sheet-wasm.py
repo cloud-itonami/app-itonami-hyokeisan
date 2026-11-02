@@ -15,9 +15,11 @@ out.mkdir(parents=True, exist_ok=False)
 source = (Path(__file__).resolve().parents[1] / 'src/hyokeisan/sheet.kotoba').read_text()
 anchor = 'total (+ (option-value-of [:option :i64] a 0) (option-value-of [:option :i64] b 0))'
 if source.count(anchor) != 1: raise ValueError('mutation anchor changed')
-sub_anchor = '(if (string=? op "-") (- av bv) (* av bv))'
+sub_anchor = '(if (string=? op "-") (- av bv) 0)'
+mul_anchor = '(* aq br)'
+if source.count(mul_anchor) != 1: raise ValueError('multiplication mutation anchor changed')
 if source.count(sub_anchor) != 1: raise ValueError('subtraction mutation anchor changed')
-div_anchor = '(not (= (rem a b) 0))'
+div_anchor = '(if (= r 0) (option-some-of [:option :i64] value) (option-none-of [:option :i64]))'
 if source.count(div_anchor) != 1: raise ValueError('division exactness mutation anchor changed')
 text_anchor = '(sum-ignored-text? (cell-text s (+ (* r 4) c)))'
 if source.count(text_anchor) != 1: raise ValueError('SUM text mutation anchor changed')
@@ -29,9 +31,9 @@ cases = [
     ('sheet', source, 0),
     ('mutant', source.replace(anchor, anchor.replace('total (+', 'total (-')), 1),
     ('sub-mutant', source.replace(sub_anchor, sub_anchor.replace('(- av bv)', '(+ av bv)'), 1), 1),
-    ('mul-mutant', source.replace(sub_anchor, sub_anchor.replace('(* av bv)', '(+ av bv)'), 1), 1),
+    ('mul-mutant', source.replace(mul_anchor, '(+ aq br)', 1), 1),
     ('sum-text-mutant', source.replace(text_anchor, '(= 0 1)', 1), 1),
-    ('division-mutant', source.replace(div_anchor, '(= 0 1)', 1), 1),
+    ('division-mutant', source.replace(div_anchor, '(option-some-of [:option :i64] value)', 1), 1),
 ]
 for name, text, expected in cases:
     src = out / (name + '.kotoba'); src.write_text(text)

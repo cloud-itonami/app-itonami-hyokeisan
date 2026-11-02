@@ -28,20 +28,65 @@
       (if (or (< c 65) (> c 68)) -1
         (let [r (string-code-point-at s 1)]
           (if (and (>= r 49) (<= r 52)) (+ (* (- r 49) 4) (- c 65)) -1))))))
-(defn parse-digits [s :string i :i64 n :i64 v :i64] [:option :i64]
-  (if (= i n) (option-some-of [:option :i64] v)
+;; Internal scale: one million units per integer. Input cells remain strings.
+;; Results requiring more than six decimal places fail instead of rounding.
+(defn decimal-padding [v :i64 places :i64] :i64
+  (if (= places 6) v (decimal-padding (* v 10) (+ places 1))))
+(defn decimal-digits [s :string i :i64 n :i64 whole :i64 fraction :i64 places :i64 dot :bool digits :i64] [:option :i64]
+  (if (= i n)
+    (if (= digits 0) (option-none-of [:option :i64])
+      (option-some-of [:option :i64] (+ (* whole 1000000) (decimal-padding fraction places))))
     (let [c (string-code-point-at s i)]
-      (if (or (< c 48) (> c 57)) (option-none-of [:option :i64])
-        (parse-digits s (+ i 1) n (+ (* v 10) (- c 48)))))))
+      (cond
+        (= c 46) (if dot (option-none-of [:option :i64]) (decimal-digits s (+ i 1) n whole fraction places true digits))
+        (or (< c 48) (> c 57)) (option-none-of [:option :i64])
+        dot (if (>= places 6) (option-none-of [:option :i64])
+              (decimal-digits s (+ i 1) n whole (+ (* fraction 10) (- c 48)) (+ places 1) true (+ digits 1)))
+        :else (let [next (+ (* whole 10) (- c 48))]
+                (if (> next 999999) (option-none-of [:option :i64])
+                  (decimal-digits s (+ i 1) n next fraction places false (+ digits 1))))))))
 (defn parse-number [s :string] [:option :i64]
   (let [n (string-byte-length s)]
     (if (= n 0) (option-some-of [:option :i64] 0)
       (let [neg (= (string-code-point-at s 0) 45) start (if neg 1 0)]
-        (if (or (= start n) (> (- n start) 6)) (option-none-of [:option :i64])
-          (let [v (parse-digits s start n 0)]
+        (if (or (= start n) (> n 14)) (option-none-of [:option :i64])
+          (let [v (decimal-digits s start n 0 0 0 false 0)]
             (if (option-some?-of [:option :i64] v)
               (option-some-of [:option :i64] (* (if neg -1 1) (option-value-of [:option :i64] v 0)))
               (option-none-of [:option :i64]))))))))
+(defn decimal-sign [a :i64 b :i64 value :i64] :i64
+  (if (or (and (< a 0) (> b 0)) (and (> a 0) (< b 0))) (- 0 value) value))
+(defn decimal-abs [v :i64] :i64 (if (< v 0) (- 0 v) v))
+(defn decimal-multiply [a :i64 b :i64] [:option :i64]
+  (let [x (decimal-abs a) y (decimal-abs b) aq (quot x 1000000) ar (rem x 1000000)
+        bq (quot y 1000000) br (rem y 1000000) product (* aq bq) tail (* ar br)]
+    (if (or (> product 1000000000) (not (= (rem tail 1000000) 0))) (option-none-of [:option :i64])
+      (let [total (+ (+ (* product 1000000) (* aq br)) (+ (* bq ar) (quot tail 1000000)))]
+        (if (> total 1000000000000000) (option-none-of [:option :i64])
+          (option-some-of [:option :i64] (decimal-sign a b total)))))))
+(defn decimal-div-digits [r :i64 divisor :i64 i :i64 value :i64] [:option :i64]
+  (if (= i 6)
+    (if (= r 0) (option-some-of [:option :i64] value) (option-none-of [:option :i64]))
+    (let [next (* r 10)]
+      (decimal-div-digits (rem next divisor) divisor (+ i 1) (+ (* value 10) (quot next divisor))))))
+(defn exact-divide [a :i64 b :i64] [:option :i64]
+  (if (= b 0) (option-none-of [:option :i64])
+    (let [x (decimal-abs a) y (decimal-abs b) whole (quot x y)]
+      (if (> whole 1000000000) (option-none-of [:option :i64])
+        (let [fraction (decimal-div-digits (rem x y) y 0 0)
+              total (+ (* whole 1000000) (option-value-of [:option :i64] fraction 0))]
+          (if (or (not (option-some?-of [:option :i64] fraction)) (> total 1000000000000000))
+            (option-none-of [:option :i64])
+            (option-some-of [:option :i64] (decimal-sign a b total))))))))
+(defn decimal-trim [s :string end :i64] :i64
+  (if (and (> end 0) (= (string-code-point-at s (- end 1)) 48)) (decimal-trim s (- end 1)) end))
+(defn format-number [v :i64] :string
+  (let [x (decimal-abs v) whole (quot x 1000000) fraction (rem x 1000000)
+        prefix (string-concat (if (< v 0) "-" "") (string-from-i64 whole))]
+    (if (= fraction 0) prefix
+      (let [padded (string-substring (string-from-i64 (+ 1000000 fraction)) 1 7)
+            end (decimal-trim padded 6)]
+        (string-concat prefix (string-concat "." (string-substring padded 0 end)))))))
 ;; SUM may ignore clearly nonnumeric literal text, but must not silently skip
 ;; formulas, error values, or unsupported numeric-looking representations.
 (defn sum-ignored-text? [s :string] :bool
@@ -66,7 +111,7 @@
           (if (sum-ignored-text? (cell-text s (+ (* r 4) c)))
             (sum-range s r (+ c 1) r0 c0 r1 c1 seen total) (option-none-of [:option :i64]))
           (let [next (+ total (option-value-of [:option :i64] v 0))]
-            (if (or (< next -1000000000) (> next 1000000000)) (option-none-of [:option :i64])
+            (if (or (< next -1000000000000000) (> next 1000000000000000)) (option-none-of [:option :i64])
               (sum-range s r (+ c 1) r0 c0 r1 c1 seen next))))))))
 ;; A binary operator must follow the first token: its leading minus is a sign.
 ;; Results are bounded before they can be used as operands by another cell.
@@ -76,23 +121,16 @@
       (if (<= n 1) -1
         (let [next (string-index-of (string-substring expr 1 n) "-")]
           (if (< next 0) -1 (+ next 1)))))))
-;; Division returns a value only when it is exact in this integer model.
-(defn exact-divide [a :i64 b :i64] [:option :i64]
-  (if (= b 0) (option-none-of [:option :i64])
-    (if (not (= (rem a b) 0)) (option-none-of [:option :i64])
-      (let [v (quot a b)]
-        (if (or (< v -1000000000) (> v 1000000000)) (option-none-of [:option :i64])
-          (option-some-of [:option :i64] v))))))
 (defn eval-binary [s :document expr :string seen :i64 op :string pos :i64] [:option :i64]
   (let [n (string-byte-length expr)]
     (if (or (<= pos 0) (>= pos (- n 1))) (option-none-of [:option :i64])
       (let [a (eval-token s (string-substring expr 0 pos) seen)
             b (eval-token s (string-substring expr (+ pos 1) n) seen)
             av (option-value-of [:option :i64] a 0) bv (option-value-of [:option :i64] b 0)
-            total (if (string=? op "-") (- av bv) (* av bv))]
+            total (if (string=? op "-") (- av bv) 0)]
         (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
-                 (or (string=? op "/") (and (>= total -1000000000) (<= total 1000000000))))
-          (if (string=? op "/") (exact-divide av bv) (option-some-of [:option :i64] total))
+                 (or (string=? op "/") (string=? op "*") (and (>= total -1000000000000000) (<= total 1000000000000000))))
+          (cond (string=? op "/") (exact-divide av bv) (string=? op "*") (decimal-multiply av bv) :else (option-some-of [:option :i64] total))
           (option-none-of [:option :i64]))))))
 ;; Grammar offsets below are byte offsets for ASCII tokens. Refuse non-ASCII
 ;; formulas as values before taking any fixed-width substring; text cells may
@@ -123,7 +161,7 @@
                   b (eval-token s (string-substring expr (+ plus 1) (string-byte-length expr)) seen)
                   total (+ (option-value-of [:option :i64] a 0) (option-value-of [:option :i64] b 0))]
               (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
-                       (>= total -1000000000) (<= total 1000000000))
+                       (>= total -1000000000000000) (<= total 1000000000000000))
                 (option-some-of [:option :i64] total) (option-none-of [:option :i64])))))))))
 (defn eval-cell [s :document i :i64 seen :i64] [:option :i64]
   (let [flag (i64-shift-left 1 i) text (cell-text s i) n (string-byte-length text)]
@@ -133,7 +171,7 @@
 (defn shown [s :document i :i64] :string
   (let [text (cell-text s i) n (string-byte-length text)]
     (if (and (> n 0) (= (string-code-point-at text 0) 61))
-      (let [v (eval-cell s i 0)] (if (option-some?-of [:option :i64] v) (string-from-i64 (option-value-of [:option :i64] v 0)) "#ERROR"))
+      (let [v (eval-cell s i 0)] (if (option-some?-of [:option :i64] v) (format-number (option-value-of [:option :i64] v 0)) "#ERROR"))
       text)))
 (defn el [tag :string attrs :document children :document] :document
   (document-map :tag (document-string tag) :attrs attrs :children children))
@@ -180,6 +218,13 @@
         div-zero-top (step s "c6" "input" "=0/B1")
         div-fraction (step s "c6" "input" "=3/2")
         div-overflow-product (step (step (init) "c0" "input" "=999999*1000") "c1" "input" "=A1/2")
+        div-repeat (step s "c6" "input" "=1/3")
+        dec-mul (step s "c6" "input" "=1.25*2")
+        dec-sign (step s "c6" "input" "=-1/8")
+        dec-tiny (step s "c6" "input" "=0.000001*0.000001")
+        dec-add (step s "c6" "input" "=0.1+0.2")
+        dec-precision (step s "c6" "input" "=1.0000001+2")
+        dec-trim (step s "c6" "input" "=1.200000+0.3")
         sum-text (step (step (step (init) "c0" "input" "売上") "c1" "input" "3") "c4" "input" "=SUM(A1:B1)")
         sum-decimal (step sum-text "c0" "input" "1.25")
         sum-error (step sum-text "c0" "input" "#DIV/0!")
@@ -194,11 +239,15 @@
              (string=? (shown overflow 1) "#ERROR") (string=? (shown cyclic-product 10) "#ERROR")
              (string=? (shown div-ref 6) "#ERROR") (string=? (shown div-exact 6) "-3")
              (string=? (shown div-negative 6) "-4") (string=? (shown div-zero 6) "#ERROR")
-             (string=? (shown div-zero-top 6) "0") (string=? (shown div-fraction 6) "#ERROR")
+             (string=? (shown div-zero-top 6) "0") (string=? (shown div-fraction 6) "1.5")
              (string=? (shown div-overflow-product 1) "499999500")
+             (string=? (shown div-repeat 6) "#ERROR") (string=? (shown dec-mul 6) "2.5")
+             (string=? (shown dec-sign 6) "-0.125") (string=? (shown dec-tiny 6) "#ERROR")
+             (string=? (shown dec-add 6) "0.3") (string=? (shown dec-precision 6) "#ERROR")
+             (string=? (shown dec-trim 6) "1.5")
              (string=? (shown unicode-formula 11) "#ERROR")
              (string=? (shown unicode-length 12) "#ERROR") (string=? (shown unicode-ref 13) "#ERROR")
-             (string=? (shown sum-text 4) "3") (string=? (shown sum-decimal 4) "#ERROR")
+             (string=? (shown sum-text 4) "3") (string=? (shown sum-decimal 4) "4.25")
              (string=? (shown sum-error 4) "#ERROR") (string=? (shown sum-formula-error 4) "#ERROR")
              (string=? (shown text-arithmetic 5) "#ERROR")
              (= (ref-index "é") -1)

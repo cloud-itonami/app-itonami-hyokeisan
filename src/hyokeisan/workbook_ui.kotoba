@@ -114,7 +114,7 @@
                    (option-none-of [:option :i64]))
           display (if (and (> (string-byte-length text) 0) (= (string-code-point-at text 0) 61))
                     (if (option-some?-of [:option :i64] result)
-                      (string-from-i64 (option-value-of [:option :i64] result 0)) "#ERROR") text)]
+                      (sheet/format-number (option-value-of [:option :i64] result 0)) "#ERROR") text)]
       (ui-cells book id grid top left (+ i 1)
         (document-vector-conj acc
           (sheet/el "div" (document-map :class (document-string "cell"))
@@ -143,5 +143,5 @@
               (sheet/el "div" (document-map :class (document-string "tools"))
                 (document-vector (ui-button "page-up" "上") (ui-button "page-down" "下")
                   (ui-button "page-left" "左") (ui-button "page-right" "右")))
-              (sheet/leaf "p" (document-map) "数式は整数・同一シート参照・+、-、*・SUM に対応します。SUM は通常の文字を無視し、未対応の数値やエラーは拒否します。保存済み4096セル、参照は32段までです。")
+              (sheet/leaf "p" (document-map) "数式は小数点以下6桁までの値、同一シート参照、1つの演算（+、-、*、/）と SUM に対応します。入力の整数部は6桁まで、結果の絶対値は10億までです。6桁に収まらない結果やゼロ除算はエラーです。SUM は通常の文字を無視します。保存済み4096セル、参照は32段までです。")
               (sheet/el "main" (document-map :class (document-string "grid")) (ui-cells raw id grid top left 0 (document-vector))))))))))

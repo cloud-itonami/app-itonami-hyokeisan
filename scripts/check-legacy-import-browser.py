@@ -127,9 +127,9 @@ try:
  wait("document.getElementById('status').textContent==='バックアップから復元しました。'",'commit')
  if stored()!=expected:raise ValueError('import differs from independent expected bytes')
  ev("document.querySelector('[data-k=sheet-next]').click()")
- wait("document.querySelector('[data-k=c0]')?.value==='x' && document.getElementById('status').textContent==='保存しました' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='#ERROR'",'second sheet division')
+ wait("document.querySelector('[data-k=c0]')?.value==='x' && document.getElementById('status').textContent==='保存しました' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='4.5'",'second sheet division')
  saved=stored();ev('window.__reloadMarker=true');pipe.call('Page.reload',{},session);wait('window.__reloadMarker!==true','reload')
- wait("document.querySelector('[data-k=c0]')?.value==='x' && document.querySelector('[data-k=c1]')?.value==='=12/-3' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='#ERROR'",'second sheet division reopen')
+ wait("document.querySelector('[data-k=c0]')?.value==='x' && document.querySelector('[data-k=c1]')?.value==='=12/-3' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='4.5'",'second sheet division reopen')
  if stored()!=saved or provenance not in saved:raise ValueError('reopen changed data or provenance')
  baseline=saved
  choose('#legacy-pull',files['bad-pull'])

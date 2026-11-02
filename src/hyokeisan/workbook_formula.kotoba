@@ -53,10 +53,10 @@
       (let [a (formula-token book id (string-substring expr 0 at) seen depth)
             b (formula-token book id (string-substring expr (+ at 1) n) seen depth)
             x (option-value-of [:option :i64] a 0) y (option-value-of [:option :i64] b 0)
-            value (cond (string=? op "+") (+ x y) (string=? op "-") (- x y) :else (* x y))]
+            value (if (string=? op "+") (+ x y) (- x y))]
         (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
-                 (or (string=? op "/") (and (>= value -1000000000) (<= value 1000000000))))
-          (if (string=? op "/") (sheet/exact-divide x y) (option-some-of [:option :i64] value))
+                 (or (string=? op "/") (string=? op "*") (and (>= value -1000000000000000) (<= value 1000000000000000))))
+          (cond (string=? op "/") (sheet/exact-divide x y) (string=? op "*") (sheet/decimal-multiply x y) :else (option-some-of [:option :i64] value))
           (option-none-of [:option :i64]))))))
 (defn formula-sheet [book :string id :string] [:option :string]
   (loop [pos (workbook/wf-sheet-start book)]
@@ -81,7 +81,7 @@
                   value (formula-value book id row col text seen depth)
                   next (+ total (option-value-of [:option :i64] value 0))]
               (if (or (and (not (option-some?-of [:option :i64] value)) (not (sheet/sum-ignored-text? text)))
-                      (< next -1000000000) (> next 1000000000))
+                      (< next -1000000000000000) (> next 1000000000000000))
                 (option-none-of [:option :i64]) (recur (workbook/wf-end vf) (+ count 1) next)))
             (recur (workbook/wf-end vf) (+ count 1) total)))))))
 (defn formula-sum [book :string id :string expr :string seen :string depth :i64] [:option :i64]

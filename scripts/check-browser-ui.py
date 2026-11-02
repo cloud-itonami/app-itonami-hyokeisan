@@ -59,14 +59,14 @@ try:
     input_('c5', '=A1-B1'); shown('c5', '-1')
     input_('c6', '=-3*B1'); shown('c6', '-12')
     input_('c9', '=12/-3'); shown('c9', '-4')
-    input_('c10', '=3/2'); shown('c10', '#ERROR')
+    input_('c10', '=3/2'); shown('c10', '1.5')
     input_('c11', '=1/0'); shown('c11', '#ERROR')
     input_('c7', '=ああ1234'); shown('c7', '#ERROR')
     input_('c8', '=é'); shown('c8', '#ERROR')
     input_('c0', '6'); shown('c4', '10'); shown('c2', '10')
     input_('c3', '=D1'); shown('c3', '#ERROR')
     input_('c1', '売上'); shown('c2', '6'); shown('c4', '#ERROR')
-    input_('c1', '1.25'); shown('c2', '#ERROR')
+    input_('c1', '1.25'); shown('c2', '7.25')
     input_('c1', '#DIV/0!'); shown('c2', '#ERROR')
     input_('c1', '=1/0'); shown('c2', '#ERROR')
     input_('c1', '4'); shown('c2', '10'); shown('c4', '10')
@@ -91,7 +91,7 @@ try:
     if evaluate("document.querySelector('[data-k=c0]').value.length") != 129 or evaluate("document.getElementById('retry-save').hidden"): raise ValueError('oversized input discarded')
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('oversized input clobbered storage')
     input_('c0', '6'); wait("document.getElementById('retry-save').hidden && localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False) + " && document.getElementById('status').textContent === '保存しました'", 'correct oversized input')
-    reload_page(); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR'); shown('c5', '2'); shown('c6', '-12'); shown('c7', '#ERROR'); shown('c8', '#ERROR'); shown('c9', '-4'); shown('c10', '#ERROR'); shown('c11', '#ERROR')
+    reload_page(); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR'); shown('c5', '2'); shown('c6', '-12'); shown('c7', '#ERROR'); shown('c8', '#ERROR'); shown('c9', '-4'); shown('c10', '1.5'); shown('c11', '#ERROR')
     # A downloaded HS1 can be explicitly reviewed and restored; invalid input
     # and storage failure must never replace the current document.
     download = out / 'downloads'
