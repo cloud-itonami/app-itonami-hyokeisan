@@ -23,8 +23,11 @@
       (document-vector-assoc s i (document-string value)) s)))
 (defn ref-index [s :string] :i64
   (if (not= (string-byte-length s) 2) -1
-    (let [c (string-code-point-at s 0) r (string-code-point-at s 1)]
-      (if (and (>= c 65) (<= c 68) (>= r 49) (<= r 52)) (+ (* (- r 49) 4) (- c 65)) -1))))
+    (let [c (string-code-point-at s 0)]
+      ;; Byte offset 1 is a boundary only if the first code point is ASCII.
+      (if (or (< c 65) (> c 68)) -1
+        (let [r (string-code-point-at s 1)]
+          (if (and (>= r 49) (<= r 52)) (+ (* (- r 49) 4) (- c 65)) -1))))))
 (defn parse-digits [s :string i :i64 n :i64 v :i64] [:option :i64]
   (if (= i n) (option-some-of [:option :i64] v)
     (let [c (string-code-point-at s i)]
@@ -69,7 +72,16 @@
         (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
                  (>= total -1000000000) (<= total 1000000000))
           (option-some-of [:option :i64] total) (option-none-of [:option :i64]))))))
+;; Grammar offsets below are byte offsets for ASCII tokens. Refuse non-ASCII
+;; formulas as values before taking any fixed-width substring; text cells may
+;; still contain arbitrary UTF-8. Never probe inside a multi-byte code point.
+(defn ascii-formula? [s :string i :i64 n :i64] :bool
+  (if (= i n) true
+    (if (< (string-code-point-at s i) 128) (ascii-formula? s (+ i 1) n) false)))
 (defn eval-form [s :document formula :string seen :i64] [:option :i64]
+  (if (ascii-formula? formula 0 (string-byte-length formula))
+    (eval-ascii-form s formula seen) (option-none-of [:option :i64])))
+(defn eval-ascii-form [s :document formula :string seen :i64] [:option :i64]
   (let [n (string-byte-length formula)]
     (if (and (= n 11) (string=? (string-substring formula 0 5) "=SUM(")
              (string=? (string-substring formula 7 8) ":") (string=? (string-substring formula 10 11) ")"))
@@ -135,6 +147,8 @@
         overflow (step (step (init) "c0" "input" "999999") "c1" "input" "=A1*1001")
         cyclic-product (step s "c10" "input" "=C3*2")
         unicode-formula (step s "c11" "input" "=日本語")
+        unicode-length (step s "c12" "input" "=ああ1234")
+        unicode-ref (step s "c13" "input" "=é")
         bytes (option-value-of [:option :string] (snap-encode s) "")
         restored (snap-decode bytes)]
     (if (and (string=? (shown s 4) "7") (string=? (shown s 2) "7") (string=? (shown s 5) "#ERROR")
@@ -143,6 +157,8 @@
              (string=? (shown bad 8) "#ERROR") (string=? (shown signs 9) "1")
              (string=? (shown overflow 1) "#ERROR") (string=? (shown cyclic-product 10) "#ERROR")
              (string=? (shown unicode-formula 11) "#ERROR")
+             (string=? (shown unicode-length 12) "#ERROR") (string=? (shown unicode-ref 13) "#ERROR")
+             (= (ref-index "é") -1)
              (option-some?-of [:option :document] restored)
              (document-equal? s (option-value-of [:option :document] restored (document-null)))
              (not (option-some?-of [:option :document] (snap-decode (string-concat bytes "extra"))))) 0 1)))

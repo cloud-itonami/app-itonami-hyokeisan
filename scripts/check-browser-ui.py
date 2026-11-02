@@ -58,6 +58,8 @@ try:
     input_('c2', '=SUM(A1:B1)'); shown('c2', '7')
     input_('c5', '=A1-B1'); shown('c5', '-1')
     input_('c6', '=-3*B1'); shown('c6', '-12')
+    input_('c7', '=ああ1234'); shown('c7', '#ERROR')
+    input_('c8', '=é'); shown('c8', '#ERROR')
     input_('c0', '6'); shown('c4', '10'); shown('c2', '10')
     input_('c3', '=D1'); shown('c3', '#ERROR')
     saved = evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
@@ -81,7 +83,7 @@ try:
     if evaluate("document.querySelector('[data-k=c0]').value.length") != 129 or evaluate("document.getElementById('retry-save').hidden"): raise ValueError('oversized input discarded')
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('oversized input clobbered storage')
     input_('c0', '6'); wait("document.getElementById('retry-save').hidden && localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False) + " && document.getElementById('status').textContent === '保存しました'", 'correct oversized input')
-    reload_page(); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR'); shown('c5', '2'); shown('c6', '-12')
+    reload_page(); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR'); shown('c5', '2'); shown('c6', '-12'); shown('c7', '#ERROR'); shown('c8', '#ERROR')
     # A downloaded HS1 can be explicitly reviewed and restored; invalid input
     # and storage failure must never replace the current document.
     download = out / 'downloads'
@@ -153,7 +155,7 @@ try:
     select_file(exported)
     wait("document.getElementById('backup-dialog').open", 'return backup preview')
     evaluate("document.getElementById('backup-confirm').click()")
-    wait("document.querySelector('[data-k=c0]')?.value === '6'", 'return to test state')
+    wait("document.querySelector('[data-k=c0]')?.value === '6' && document.getElementById('status').textContent === 'バックアップから復元しました。'", 'return to test state')
     second = pipe.call('Target.createTarget', {'url': url})['targetId']
     second_session = pipe.call('Target.attachToTarget', {'targetId': second, 'flatten': True})['sessionId']
     def second_eval(expr):
@@ -170,8 +172,11 @@ try:
     end = time.time() + 90
     while time.time() < end and not second_eval("document.getElementById('backup-dialog').open"): time.sleep(.2)
     if not second_eval("document.getElementById('backup-dialog').open"): raise TimeoutError('second tab backup preview')
+    pipe.call('Page.bringToFront', {}, session)
+    wait("document.visibilityState === 'visible'", 'foreground first tab')
     input_('c0', '8'); shown('c4', '12')
     saved_after_edit = evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
+    pipe.call('Page.bringToFront', {}, second_session)
     second_eval("document.getElementById('backup-confirm').click()")
     end = time.time() + 90
     while time.time() < end and not second_eval("document.getElementById('status')?.textContent.includes('復元できませんでした')"): time.sleep(.2)
@@ -189,6 +194,8 @@ try:
     saved = evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
     if '77' in saved: raise ValueError('stale tab clobbered state')
     pipe.call('Target.closeTarget', {'targetId': second})
+    pipe.call('Page.bringToFront', {}, session)
+    wait("document.visibilityState === 'visible'", 'foreground after second tab')
     evaluate("window.savedTimer=window.setTimeout;window.setTimeout=(f,n)=>window.savedTimer(f,n===30000?1:n)")
     input_('c0', '9')
     wait("document.getElementById('status').textContent.includes('時間内に完了しませんでした')", 'worker timeout')
@@ -252,7 +259,7 @@ try:
     requests = [e['params']['request']['url'] for e in pipe.events if e.get('method') == 'Network.requestWillBeSent']
     if any(u.split('?', 1)[0].endswith('/favicon.ico') for u in requests): raise ValueError('unversioned favicon request')
     if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
-    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-both-write-failures-conflict','grid','addition','subtraction-multiplication-reload','sum','recalculate','cycle','save-reload','synthetic-composition-with-concurrent-redraw','oversized-refusal','concurrent-tab-refusal','worker-timeout-retry','hidden-timeout-retry','worker-interruption-retry','storage-failure-retry','multiple-unsaved-fields','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
+    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-both-write-failures-conflict','grid','addition','subtraction-multiplication-reload','unicode-formula-save-reload','sum','recalculate','cycle','save-reload','synthetic-composition-with-concurrent-redraw','oversized-refusal','concurrent-tab-refusal','worker-timeout-retry','hidden-timeout-retry','worker-interruption-retry','storage-failure-retry','multiple-unsaved-fields','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
     print('PASS_HYOKEISAN_BROWSER_UI grid, calculation, save and refusal')
 finally:
     pipe.close(); server.shutdown(); server.server_close()
