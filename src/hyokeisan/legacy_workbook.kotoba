@@ -1,0 +1,42 @@
+(ns hyokeisan.legacy-workbook
+  (:export [legacy-workbook-candidate])
+  (:require [hyokeisan.legacy-metadata :as metadata]
+            [hyokeisan.legacy-grid :as grid]
+            [hyokeisan.workbook :as workbook]
+            [hyokeisan.workbook-ui :as ui]))
+
+;; Provisional offline conversion of three caller-supplied values, not an
+;; authenticated export or persistence action. Preserve exact parts as LE1
+;; provenance; unsupported data or the HU1 storage bound must refuse.
+(defn lw-sheets [grid :string pairs :string pos :i64 out :string] [:option :string]
+  (if (= pos (string-byte-length pairs))
+    (if (workbook/wf-valid? out) (option-some-of [:option :string] out) (option-none-of [:option :string]))
+    (let [idf (workbook/wf-read pairs pos)]
+      (if (< (workbook/wf-start idf) 0) (option-none-of [:option :string])
+        (let [namef (workbook/wf-read pairs (workbook/wf-end idf))]
+          (if (< (workbook/wf-start namef) 0) (option-none-of [:option :string])
+            (let [id (workbook/wf-text pairs idf) name (workbook/wf-text pairs namef)
+                  cells (grid/legacy-grid-find grid name)]
+              (if (not (option-some?-of [:option :string] cells)) (option-none-of [:option :string])
+                (let [sheet (string-concat (workbook/wf-frame id)
+                              (string-concat (workbook/wf-frame name) (option-value-of [:option :string] cells "")))
+                      next (string-concat out (workbook/wf-frame sheet))]
+                  (if (> (string-byte-length next) 35000) (option-none-of [:option :string])
+                    (lw-sheets grid pairs (workbook/wf-end namef) next)))))))))))
+(defn legacy-workbook-candidate [title :string sheets-json :string grid-json :string] [:option :string]
+  (let [pairs (metadata/legacy-metadata-pairs sheets-json)
+        titles (metadata/legacy-metadata-titles sheets-json)]
+    (if (or (not (option-some?-of [:option :string] pairs))
+            (not (option-some?-of [:option :string] titles)) (> (string-byte-length title) 1024))
+      (option-none-of [:option :string])
+      (let [p (option-value-of [:option :string] pairs "") t (option-value-of [:option :string] titles "")]
+        (if (or (= (string-byte-length p) 0) (not (grid/legacy-grid-match-titles grid-json t)))
+          (option-none-of [:option :string])
+          (let [raw-source (string-concat "LE1|" (string-concat (workbook/wf-frame title)
+                             (string-concat (workbook/wf-frame sheets-json) (workbook/wf-frame grid-json))))
+                book (workbook/wf-new title raw-source)]
+            (if (not (option-some?-of [:option :string] book)) (option-none-of [:option :string])
+              (let [built (lw-sheets grid-json p 0 (option-value-of [:option :string] book ""))
+                    first (workbook/wf-read p 0)]
+                (if (not (option-some?-of [:option :string] built)) (option-none-of [:option :string])
+                  (ui/ui-wrap (option-value-of [:option :string] built "") (workbook/wf-text p first) 1 1))))))))))

@@ -19,11 +19,11 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / 'scripts'))
 from browser_source import stage
 source = stage(root, entry=False)
-for name in ('json_string.kotoba', 'json_parse.kotoba', 'legacy_grid.kotoba', 'legacy_metadata.kotoba'):
+for name in ('json_string.kotoba', 'json_parse.kotoba', 'legacy_grid.kotoba', 'legacy_metadata.kotoba', 'legacy_workbook.kotoba'):
     module = (root / 'src/hyokeisan' / name).read_text(encoding='utf-8')
     module, count = re.subn(r'\A\(ns\s+hyokeisan\.[\s\S]*?\)\)\s*', '', module, count=1)
     if count != 1: raise ValueError('module header: ' + name)
-    source += '\n' + module.replace('(js/', '(').replace('(json/', '(').replace('(workbook/', '(').replace('(grid/', '(')
+    source += '\n' + module.replace('(js/', '(').replace('(json/', '(').replace('(workbook/', '(').replace('(grid/', '(').replace('(metadata/', '(').replace('(ui/', '(')
 
 def frame(s): return str(len(s.encode('utf-8'))) + ':' + s
 rows = [['a', '雪', '', 'emoji😀'], [], ['=A1+2']] + [['1'] for _ in range(70)] + [['x'] * 1024]
@@ -39,6 +39,15 @@ metadata_items = [{'sheetId': i, 'title': 'Sheet' + str(i), 'index': i, 'rowCoun
 metadata_items.append({'sheetId': 'final', 'title': '予算!', 'index': 40})
 metadata = json.dumps(metadata_items, ensure_ascii=False, separators=(',', ':'))
 metadata_pairs = ''.join(frame('n:' + str(i)) + frame('Sheet' + str(i)) for i in range(40)) + frame('s:final') + frame('予算!')
+small_metadata = '[{"sheetId":0,"title":"A","color":"blue"},{"sheetId":"b","title":"B"}]'
+small_grid = '{"B":[["x"]],"A":[["雪",""],["=A1+2","3"]]}'
+provenance = 'LE1|' + frame('予算') + frame(small_metadata) + frame(small_grid)
+cells_a = frame('1') + frame('1') + frame('雪') + frame('2') + frame('1') + frame('=A1+2') + frame('2') + frame('2') + frame('3')
+cells_b = frame('1') + frame('1') + frame('x')
+book = 'HW3|' + frame('予算') + frame(provenance) + frame(frame('n:0') + frame('A') + cells_a) + frame(frame('s:b') + frame('B') + cells_b)
+candidate = 'HU1|' + frame(book) + frame('n:0') + frame('1') + frame('1')
+large_metadata = '[{"sheetId":0,"title":"A"}]'
+large_grid = json.dumps({'A': [['x' * 20] * 800]}, separators=(',', ':'))
 bad_metadata = ['[{"sheetId":1,"title":"A"},{"sheetId":1,"title":"B"}]',
                 '[{"sheetId":1,"title":"A"},{"sheetId":2,"title":"A"}]',
                 '[{"sheetId":1,"title":"A","title":"B"}]',
@@ -62,6 +71,11 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(string=? (option-value-of [:option :string] (legacy-metadata-pairs ' + literal(metadata) + ') "bad") ' + literal(metadata_pairs) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-metadata-titles ' + literal(metadata) + ') "bad") ' + literal(object_titles) + ') ' + \
     '(legacy-grid-match-titles ' + literal(grid_object) + ' (option-value-of [:option :string] (legacy-metadata-titles ' + literal(metadata) + ') "bad")) ' + \
+    '(string=? (option-value-of [:option :string] (legacy-workbook-candidate "予算" ' + literal(small_metadata) + ' ' + literal(small_grid) + ') "bad") ' + literal(candidate) + ') ' + \
+    '(option-some?-of [:option :document] (ui-read ' + literal(candidate) + ')) ' + \
+    '(not (option-some?-of [:option :string] (legacy-workbook-candidate "予算" ' + literal(small_metadata) + ' "{\\"A\\":[]}"))) ' + \
+    '(not (option-some?-of [:option :string] (legacy-workbook-candidate "x" "[]" "{}"))) ' + \
+    '(not (option-some?-of [:option :string] (legacy-workbook-candidate "big" ' + literal(large_metadata) + ' ' + literal(large_grid) + '))) ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-metadata-pairs ' + literal(item) + ')))' for item in bad_metadata) + ' ' + \
     '(legacy-grid-match-titles ' + literal(grid_object) + ' ' + literal(object_titles) + ') ' + \
     '(not (option-some?-of [:option :string] (legacy-grid-find ' + literal(grid_object) + ' "missing"))) ' + \
@@ -76,9 +90,12 @@ count_anchor = '(string=? (string-from-i64 count) expected)'
 if source.count(count_anchor) != 1: raise ValueError('title-count mutation anchor changed')
 id_anchor = '(lg-seen? ids ident)'
 if source.count(id_anchor) != 1: raise ValueError('sheet-id mutation anchor changed')
+provenance_anchor = '(wf-frame grid-json)'
+if source.count(provenance_anchor) != 1: raise ValueError('provenance mutation anchor changed')
 cases = [('grid', source, 0), ('coordinate-mutant', source.replace(anchor, '(string-concat acc (wf-cell col row value))', 1), 1),
          ('title-count-mutant', source.replace(count_anchor, 'true', 1), 1),
-         ('duplicate-id-mutant', source.replace(id_anchor, 'false', 1), 1)]
+         ('duplicate-id-mutant', source.replace(id_anchor, 'false', 1), 1),
+         ('provenance-mutant', source.replace(provenance_anchor, '(wf-frame "")', 1), 1)]
 
 def load(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
