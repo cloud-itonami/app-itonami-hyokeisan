@@ -251,6 +251,8 @@
              (string=? (shown sum-error 4) "#ERROR") (string=? (shown sum-formula-error 4) "#ERROR")
              (string=? (shown text-arithmetic 5) "#ERROR")
              (= (ref-index "é") -1)
+             (not (option-some?-of [:option :document] (snap-decode "雪雪")))
+             (not (option-some?-of [:option :document] (snap-decode "HS雪雪")))
              (option-some?-of [:option :document] restored)
              (document-equal? s (option-value-of [:option :document] restored (document-null)))
              (not (option-some?-of [:option :document] (snap-decode (string-concat bytes "extra"))))) 0 1)))
@@ -298,6 +300,8 @@
         (option-none-of [:option :document])
         (snap-decode-cells s (vector-at r 2) (+ i 1) (document-vector-conj acc (document-string (snap-text s r))))))))
 (defn snap-decode [s :string] [:option :document]
-  (if (or (< (string-byte-length s) 4) (not (string=? (string-substring s 0 4) "HS1|")))
+  (if (or (< (string-byte-length s) 4) (not (= (string-code-point-at s 0) 72))
+          (not (= (string-code-point-at s 1) 83)) (not (= (string-code-point-at s 2) 49))
+          (not (= (string-code-point-at s 3) 124)))
     (option-none-of [:option :document]) (snap-decode-cells s 4 0 (document-vector))))
 (defn main [] :i64 (test-sheet))

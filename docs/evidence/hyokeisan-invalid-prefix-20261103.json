@@ -1,0 +1,242 @@
+{
+  "status": "PASS_HYOKEISAN_INVALID_PREFIX",
+  "scope": "Synthetic macOS Arm and Chrome/Wasm only; no real-user migration, OS/QEMU, delivery or release qualification",
+  "sources": {
+    "src/hyokeisan/sheet.kotoba": "16e7ac93b6f10d64355a986ce066e78c7768c78ab5afbb8a58092add91852bca",
+    "scripts/check-browser-ui.py": "269a81d3f24c2467a08850c96070f00b6ad64b8bacf078474ec4e8e69b7744d2",
+    "scripts/check-sheet-wasm.py": "3256d29624821948c62feeb3d7339a59ca575a6a5109947690f835e1d399538a",
+    "scripts/check-native-workbook-host.py": "f9052f0fed4318d204487515622984334762f71d1476ad1c0217af51feda8481"
+  },
+  "preFix": {
+    "input": "雪雪",
+    "command": "amu run src/hyokeisan/sheet.kotoba with invalid-input assertion",
+    "shellExit": 133,
+    "meaning": "SIGTRAP observed on macOS"
+  },
+  "model": {
+    "sourceSha256": "16e7ac93b6f10d64355a986ce066e78c7768c78ab5afbb8a58092add91852bca",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "results": {
+      "sheet": {
+        "result": 0,
+        "wasmSha256": "1b51c7094036844533e5fcc66e6330506d6af88a964ad5c66cd1325ea2c18398"
+      },
+      "mutant": {
+        "result": 1,
+        "wasmSha256": "32a20d4192dad1ff1dd397e55b03d4d4814b49b69e7871b17166eee8aa637f9b"
+      },
+      "sub-mutant": {
+        "result": 1,
+        "wasmSha256": "4c22746129d4bcad290ea485cd3f6a7b4e2eaaf34fcf3cceae0db9e4d4e3a0db"
+      },
+      "mul-mutant": {
+        "result": 1,
+        "wasmSha256": "880ab82960b9fc045121c3376bca6b5e909fc3b8c926539987706f0783b16f19"
+      },
+      "sum-text-mutant": {
+        "result": 1,
+        "wasmSha256": "733a2e4147ffbbaa6a8088d85e2f1847395fbcc9f2500e73c5bf2a9f24ed89af"
+      },
+      "division-mutant": {
+        "result": 1,
+        "wasmSha256": "b9de34da3be64b08391777d76a8bdffa7ec7ac3e210cea5aa111b0ed298b7d44"
+      }
+    }
+  },
+  "build": {
+    "wasmSha256": "fd30b0f30e12355ecfa6d357daf21dd28c1b8bbf9f9c5a939b3036fcc49f02a8",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "25920c2c14970924b09dee8600ff544f472ef7d8cf38d59557b2ffcea916892e",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "browser": {
+    "status": "PASS",
+    "checks": [
+      "backup-export-import-cancel-restore",
+      "backup-invalid-both-write-failures-conflict",
+      "grid",
+      "addition",
+      "subtraction-multiplication-division-reload",
+      "unicode-formula-save-reload",
+      "sum",
+      "recalculate",
+      "cycle",
+      "save-reload",
+      "synthetic-composition-with-concurrent-redraw",
+      "oversized-refusal",
+      "concurrent-tab-refusal",
+      "worker-timeout-retry",
+      "hidden-timeout-retry",
+      "worker-interruption-retry",
+      "storage-failure-retry",
+      "multiple-unsaved-fields",
+      "corrupt-refusal",
+      "future-HW3-refusal",
+      "digest-refusal",
+      "loopback-only"
+    ]
+  },
+  "browserAdditionalChecks": [
+    "Unicode and partial ASCII prefix files refused; prior localStorage unchanged"
+  ],
+  "linkedHost": {
+    "status": "PASS_HYOKEISAN_LINKED_HOST",
+    "compilerSHA256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "host": [
+      "Darwin",
+      "arm64"
+    ],
+    "packagerSHA256": "e95284408f091c8979ef74ece57116a4df2250e61e42074da5dc95ca30264142",
+    "resultBits": 8,
+    "artifacts": {
+      "host": {
+        "unsignedSHA256": "da2b9d166c8361241c73398302cf6e521f9559869c641fa5c05a03597509e4b0",
+        "lockSHA256": "d4fdcb98b5416e6b344ecf64b2b433447be98b2d11ea18bac7270ad03f11f8c5",
+        "sources": {
+          "hyokeisan/sheet.kotoba": "79a7252456fd8dfea32c6ae21fd8ed0211c0f82eed69416260f5abcdff4302d2",
+          "hyokeisan/native_workbook_host.kotoba": "cbb869e41169a1e9fcc094c7de39be04267a6d0bf25631a25f4f20b56f2068d2"
+        }
+      },
+      "mutant": {
+        "unsignedSHA256": "2e4d0e69bf1561f3dd033d1586935b1f27f0977276f07a2c721225b88dd556d9",
+        "lockSHA256": "8a80bd9ce5526e158cccd006e9fa1e39a6ea6be78cee995d25a0389e970fdbe2",
+        "sources": {
+          "hyokeisan/sheet.kotoba": "fe4f4db863068d7f869a85988fdcebc9825175b9854982e90535ca439944d27e",
+          "hyokeisan/native_workbook_host.kotoba": "cbb869e41169a1e9fcc094c7de39be04267a6d0bf25631a25f4f20b56f2068d2"
+        }
+      },
+      "refusal-mutant": {
+        "unsignedSHA256": "05d65169c9cc294ec16b58c8fca3284085228d8eb478741d3a9fc87dfc032d1d",
+        "lockSHA256": "d8febafb9480cd5e8323e468cbbc4ca3c0eb5eb3b92750e4e00ad60efd79f18b",
+        "sources": {
+          "hyokeisan/sheet.kotoba": "91b57790fb740018fd366cf245c8276e67beed81bb648162df525b3244d4351b",
+          "hyokeisan/native_workbook_host.kotoba": "cbb869e41169a1e9fcc094c7de39be04267a6d0bf25631a25f4f20b56f2068d2"
+        }
+      }
+    },
+    "observations": [
+      {
+        "name": "host-check",
+        "exit": 0,
+        "seconds": 1.617,
+        "stdoutSHA256": "dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "host-compile",
+        "exit": 0,
+        "seconds": 1.192,
+        "stdoutSHA256": "8821510cd26584273889c0cf62717a2ea9fc3b17d7eb2f4d88843f4a3542a4df",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "host-extract",
+        "exit": 0,
+        "seconds": 0.011,
+        "stdoutSHA256": "5ade9c9dbb5b3dcab3d65a8dedc9339df6210187884a5d5e534b0fbf392a9e33",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "host-package",
+        "exit": 0,
+        "seconds": 0.016,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "linked-model",
+        "exit": 0,
+        "seconds": 0.52,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "mutant-check",
+        "exit": 0,
+        "seconds": 1.151,
+        "stdoutSHA256": "dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "mutant-compile",
+        "exit": 0,
+        "seconds": 1.148,
+        "stdoutSHA256": "3d0143d7c2f172f067e92b6e6cf869645f5bd7884b1a55dc0b4b42b2f4dc3371",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "mutant-extract",
+        "exit": 0,
+        "seconds": 0.018,
+        "stdoutSHA256": "ff6c922b51245a3defda7ec3171c85489135a6d5ba649676d1784985f6ffd92c",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "mutant-package",
+        "exit": 0,
+        "seconds": 0.015,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "mutation-detected",
+        "exit": 1,
+        "seconds": 0.544,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "refusal-mutant-check",
+        "exit": 0,
+        "seconds": 1.048,
+        "stdoutSHA256": "dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "refusal-mutant-compile",
+        "exit": 0,
+        "seconds": 1.116,
+        "stdoutSHA256": "d3b4c9ec13ee5414580089f726bd3bb38f51bb39889149debd2bb15fb0f05524",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "refusal-mutant-extract",
+        "exit": 0,
+        "seconds": 0.02,
+        "stdoutSHA256": "888183ac764e26b832561aca0a250c0e8f59046fb41f04f6bfe0becb384cb379",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "refusal-mutant-package",
+        "exit": 0,
+        "seconds": 0.02,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "refusal-detected",
+        "exit": 1,
+        "seconds": 0.336,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "publicTestKeysOnly": true,
+    "observerSHA256": "f9052f0fed4318d204487515622984334762f71d1476ad1c0217af51feda8481",
+    "stagerSHA256": "2aa1c94b32da6ee8886917a177e15eb86dffa844a9ae051cf95a71d5e0c2fcb7",
+    "browserStagerSHA256": "a33b0aec1198e3cb0b7c9069296abbbbbcdf3e1b9ffb6acf9aec4b2e63c153be",
+    "nativeGateSHA256": "84dea6644db292aaede4d93c39f326cdf41b83ad7482632c969dd6cae9bf9e37",
+    "browserBuild": {
+      "wasmSha256": "fd30b0f30e12355ecfa6d357daf21dd28c1b8bbf9f9c5a939b3036fcc49f02a8",
+      "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+      "sourceSha256": "25920c2c14970924b09dee8600ff544f472ef7d8cf38d59557b2ffcea916892e",
+      "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+      "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+      "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+    },
+    "hostSourceSha256": "79a7252456fd8dfea32c6ae21fd8ed0211c0f82eed69416260f5abcdff4302d2",
+    "scope": "macOS Arm native synthetic data; no Itonami OS GUI, QEMU, durable storage or release"
+  }
+}
