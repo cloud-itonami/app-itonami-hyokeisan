@@ -21,7 +21,7 @@ const BACKUP_PREFIX = KEY + '.preimport.';
 const backupFile = document.getElementById('backup-file');
 const backupDialog = document.getElementById('backup-dialog');
 const backupPreview = document.getElementById('backup-preview');
-let proposedBackup = null;
+let proposedBackup = null, proposedBase = null, proposedPersisted = null;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true });
 let bytes, compiledModule, snapshot, persisted;
@@ -301,10 +301,26 @@ async function previewBackup(candidate, label) {
   if (typeof candidate !== 'string' || !(candidate.startsWith('HS1|') || candidate.startsWith('HU1|')) || encoder.encode(candidate).length > LIMIT) throw Error('invalid backup');
   const tree = parseTree(await run(['view', candidate]));
   proposedBackup = candidate;
+  proposedBase = snapshot; proposedPersisted = persisted;
   document.getElementById('backup-label').textContent = label;
   backupPreview.replaceChildren(tree);
   backupDialog.showModal();
 }
+document.getElementById('legacy-preview').addEventListener('click', () => {
+  const title = document.getElementById('legacy-title').value;
+  const sheets = document.getElementById('legacy-sheets').files[0];
+  const grid = document.getElementById('legacy-grid').files[0];
+  pending = pending.then(async () => {
+    try {
+      if (draftBlocked || edits.size || !sheets || !grid || sheets.size > LIMIT || grid.size > LIMIT || encoder.encode(title).length > 1024) throw Error('legacy input');
+      const sheetsText = decoder.decode(await sheets.arrayBuffer());
+      const gridText = decoder.decode(await grid.arrayBuffer());
+      const result = await run(['legacy', title, sheetsText, gridText]);
+      if (!result.endsWith('\n') || !result.startsWith('HU1|')) throw Error('legacy refused');
+      await previewBackup(result.slice(0, -1), '旧ファイルの読み込み候補です。先頭シートの一部を表示しています。書式など未対応の属性は原文に保持されます。同じ版から取得されたファイルか確認してください。');
+    } catch (_) { fail('旧データを読み込めません。現在の表計算は変更していません。'); }
+  });
+});
 async function previewUpgrade() {
   try {
     if (edits.size || typeof snapshot !== 'string' || !snapshot.startsWith('HS1|')) throw Error('upgrade unavailable');
@@ -337,16 +353,17 @@ async function restoreBackup() {
   } catch (_) { fail('バックアップを読み込めません。現在の表計算は変更していません。'); }
 }
 document.getElementById('backup-cancel').addEventListener('click', () => backupDialog.close());
-backupDialog.addEventListener('close', () => { proposedBackup = null; backupPreview.replaceChildren(); });
+backupDialog.addEventListener('close', () => { proposedBackup = null; proposedBase = null; proposedPersisted = null; backupPreview.replaceChildren(); });
 document.getElementById('backup-confirm').addEventListener('click', () => {
   const next = proposedBackup;
+  const base = proposedBase, basePersisted = proposedPersisted;
   if (next === null) return;
   backupDialog.close();
   pending = pending.then(async () => {
     try {
       if (!navigator.locks) throw Error('local locking unavailable');
       await navigator.locks.request(KEY, async () => {
-        if (localStorage.getItem(KEY) !== persisted) throw Error('concurrent change');
+        if (snapshot !== base || persisted !== basePersisted || localStorage.getItem(KEY) !== persisted) throw Error('concurrent change');
         const tree = parseTree(await run(['view', next]));
         if (edits.size) throw Error('unsaved input');
         let stamp = Date.now();

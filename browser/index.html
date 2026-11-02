@@ -22,6 +22,14 @@
   </section>
   <button id="retry-save" type="button" hidden>未保存の入力を再保存</button>
   <div id="app"></div>
+  <section aria-labelledby="legacy-heading">
+    <h2 id="legacy-heading">旧表計算データの読み込み</h2>
+    <p>同じ表計算の旧シート一覧とグリッドの JSON ファイルを選んでください。ファイルが同じ版から取得されたことは、この画面では確認できません。</p>
+    <label>表計算の名前 <input id="legacy-title" type="text" maxlength="1024"></label>
+    <label>シート一覧 JSON <input id="legacy-sheets" type="file" accept=".json,application/json"></label>
+    <label>グリッド JSON <input id="legacy-grid" type="file" accept=".json,application/json"></label>
+    <button id="legacy-preview" type="button">読み込み内容を確認</button>
+  </section>
   <input id="backup-file" type="file" accept=".hs1,.hu1,application/octet-stream" hidden>
   <dialog id="backup-dialog" aria-labelledby="backup-heading">
     <h2 id="backup-heading">復元内容の確認</h2>
