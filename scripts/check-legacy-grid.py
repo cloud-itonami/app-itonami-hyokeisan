@@ -59,6 +59,7 @@ pull_obj = {'ok': True, 'graph': 'bfixture', 'entity': 'sheet:book:demo', 'attrs
 pull = json.dumps(pull_obj, ensure_ascii=False, separators=(',', ':'))
 pull_book = 'HW3|' + frame('予算') + frame('LE2|' + frame(pull)) + frame(frame('n:0') + frame('A') + cells_a) + frame(frame('s:b') + frame('B') + cells_b)
 pull_candidate = 'HU1|' + frame(pull_book) + frame('n:0') + frame('1') + frame('1')
+pull_info = 'LP1|' + frame('bfixture') + frame('sheet:book:demo') + frame('7')
 def altered_pull(change):
     value = json.loads(pull)
     change(value)
@@ -99,6 +100,7 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(legacy-grid-match-titles ' + literal(grid_object) + ' (option-value-of [:option :string] (legacy-metadata-titles ' + literal(metadata) + ') "bad")) ' + \
     '(string=? (option-value-of [:option :string] (legacy-workbook-candidate "予算" ' + literal(small_metadata) + ' ' + literal(small_grid) + ') "bad") ' + literal(candidate) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-pull-candidate ' + literal(pull) + ') "bad") ' + literal(pull_candidate) + ') ' + \
+    '(string=? (option-value-of [:option :string] (legacy-pull-info ' + literal(pull) + ') "bad") ' + literal(pull_info) + ') ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-pull-candidate ' + literal(item) + ')))' for item in bad_pulls) + ' ' + \
     '(option-some?-of [:option :document] (ui-read ' + literal(candidate) + ')) ' + \
     '(not (option-some?-of [:option :string] (legacy-workbook-candidate "予算" ' + literal(small_metadata) + ' "{\\"A\\":[]}"))) ' + \

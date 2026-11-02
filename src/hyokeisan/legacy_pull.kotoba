@@ -1,5 +1,5 @@
 (ns hyokeisan.legacy-pull
-  (:export [legacy-pull-candidate])
+  (:export [legacy-pull-candidate legacy-pull-info])
   (:require [hyokeisan.json-string :as js]
             [hyokeisan.json-parse :as json]
             [hyokeisan.legacy-metadata :as metadata]
@@ -31,6 +31,22 @@
     (if (option-some?-of [:option :string] edn)
       (js/json-unquote (option-value-of [:option :string] edn ""))
       (option-none-of [:option :string]))))
+;; Display metadata only; this does not authenticate the supplied response.
+(defn legacy-pull-info [raw :string] [:option :string]
+  (let [graph (lp-field-string raw "graph") entity (lp-field-string raw "entity")
+        attrs (json/json-object-field raw "attrs")]
+    (if (or (not (option-some?-of [:option :string] graph))
+            (not (option-some?-of [:option :string] entity))
+            (not (option-some?-of [:option :string] attrs))) (option-none-of [:option :string])
+      (let [g (option-value-of [:option :string] graph "") e (option-value-of [:option :string] entity "")
+            rev (lp-attribute (option-value-of [:option :string] attrs "") ":sheet/revision")]
+        (if (or (= (string-byte-length g) 0) (> (string-byte-length g) 1024)
+                (= (string-byte-length e) 0) (> (string-byte-length e) 1024)
+                (not (option-some?-of [:option :string] rev))
+                (not (metadata/lm-digit-id? (option-value-of [:option :string] rev ""))))
+          (option-none-of [:option :string])
+          (option-some-of [:option :string] (string-concat "LP1|" (string-concat (workbook/wf-frame g)
+            (string-concat (workbook/wf-frame e) (workbook/wf-frame (option-value-of [:option :string] rev "")))))))))))
 (defn lp-preserve [state :string raw :string] [:option :string]
   (let [parsed (ui/ui-read state)]
     (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :string])

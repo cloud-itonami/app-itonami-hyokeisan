@@ -59,6 +59,8 @@
         (browser-emit-wire (legacy-workbook-candidate (browser-arg "1") (browser-arg "2") (browser-arg "3")))
       (and (string=? argc "2") (string=? op "legacy-pull"))
         (browser-emit-wire (legacy-pull-candidate (browser-arg "1")))
+      (and (string=? argc "2") (string=? op "legacy-pull-info"))
+        (browser-emit-wire (legacy-pull-info (browser-arg "1")))
       (and (string=? argc "5") (string=? op "step"))
         (let [raw (browser-arg "1") target (browser-arg "2")
               kind (browser-arg "3") value (browser-arg "4")]

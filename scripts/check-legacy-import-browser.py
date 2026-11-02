@@ -23,6 +23,7 @@ attrs={':sheet/type':[edn('Spreadsheet')],':sheet/id':[edn('sheet:book:demo')],'
 pull_obj={'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':attrs}
 pull=json.dumps(pull_obj,ensure_ascii=False,separators=(',',':'))
 bad_pull=json.loads(pull);bad_pull['entity']='sheet:book:other';bad_pull=json.dumps(bad_pull,ensure_ascii=False,separators=(',',':'))
+hostile_pull=json.loads(pull);hostile_pull['graph']='<img src=x onerror=alert(1)>';hostile_pull=json.dumps(hostile_pull,ensure_ascii=False,separators=(',',':'))
 wide_meta='[{"sheetId":0,"title":"A"}]'
 wide_grid=json.dumps({'A':[['1']*1024]},separators=(',',':'))
 wide_attrs=dict(attrs);wide_attrs[':sheet/title']=[edn('Wide')];wide_attrs[':sheet/sheetsJson']=[edn(wide_meta)];wide_attrs[':sheet/gridJson']=[edn(wide_grid)]
@@ -34,7 +35,7 @@ def pull_with_columns(count):
 near_pull=pull_with_columns(1600)
 over_pull=pull_with_columns(1700)
 files={}
-for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('near-pull',near_pull),('over-pull',over_pull)]:
+for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('hostile-pull',hostile_pull),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('near-pull',near_pull),('over-pull',over_pull)]:
  files[name]=out/(name+'.json');files[name].write_text(value,encoding='utf-8')
 f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
@@ -122,9 +123,15 @@ try:
   ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
   wait("document.getElementById('backup-dialog').open || document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'pull preview')
   if not ev("document.getElementById('backup-dialog').open"):raise ValueError('pull preview refused')
+ choose('#legacy-pull',files['hostile-pull']);pull_preview()
+ if not ev("document.getElementById('backup-label').textContent.includes('<img src=x')") or ev("document.querySelector('#backup-label img')!==null"):raise ValueError('pull metadata rendered as markup')
+ ev("document.getElementById('backup-cancel').click()")
+ if stored()!=baseline:raise ValueError('hostile preview changed storage')
+ choose('#legacy-pull',files['pull'])
  pull_preview()
  if stored()!=baseline or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='雪':raise ValueError('pull preview mismatch')
  if not ev("document.getElementById('backup-label').textContent.includes('権限による欠落')"):raise ValueError('pull visibility notice missing')
+ if not ev("['bfixture','sheet:book:demo','版: 7'].every(v=>document.getElementById('backup-label').textContent.includes(v))"):raise ValueError('pull identity or revision missing')
  ev("document.getElementById('backup-cancel').click()")
  if stored()!=baseline:raise ValueError('pull cancel changed state')
  pull_preview();ev("window.originalSetter=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(this===localStorage&&k.startsWith("+json.dumps(key+'.preimport.')+"))throw Error('quota');return window.originalSetter.call(this,k,v)}")

@@ -166,6 +166,22 @@ function parseTree(wire) {
   if (pos !== data.length - 1) throw Error('view trailing data');
   return tree;
 }
+function parsePullInfo(wire) {
+  const data = encoder.encode(wire);
+  if (!wire.startsWith('LP1|') || data[data.length - 1] !== 10 || data.length > 2200) throw Error('pull info');
+  let pos = 4;
+  const fields = [];
+  for (let i = 0; i < 3; i++) {
+    const start = pos;
+    while (pos < data.length && data[pos] >= 48 && data[pos] <= 57 && pos - start < 4) pos++;
+    if (pos === start || data[pos] !== 58 || (pos - start > 1 && data[start] === 48)) throw Error('pull field');
+    const length = Number(decoder.decode(data.slice(start, pos++)));
+    if (length > 1024 || pos + length > data.length - 1) throw Error('pull bounds');
+    fields.push(decoder.decode(data.slice(pos, pos + length))); pos += length;
+  }
+  if (pos !== data.length - 1 || !/^(0|[1-9][0-9]{0,17})$/.test(fields[2])) throw Error('pull trailing data');
+  return fields;
+}
 function run(args) {
   return new Promise((resolve, reject) => {
     const worker = new Worker('./worker.js');
@@ -329,7 +345,8 @@ document.getElementById('legacy-pull-preview').addEventListener('click', () => {
       const raw = decoder.decode(await file.arrayBuffer());
       const result = await run(['legacy-pull', raw]);
       if (!result.endsWith('\n') || !result.startsWith('HU1|')) throw Error('legacy pull refused');
-      await previewBackup(result.slice(0, -1), '旧 pull 応答の候補です。先頭シートの一部を表示します。出所と権限による欠落は確認できません。未対応の属性は原文に保持されます。');
+      const [graph, entity, revision] = parsePullInfo(await run(['legacy-pull-info', raw]));
+      await previewBackup(result.slice(0, -1), '旧 pull 応答の候補です。先頭シートの一部を表示します。出所と権限による欠落は確認できません。未対応の属性は原文に保持されます。\nグラフ: ' + JSON.stringify(graph) + '\n対象: ' + JSON.stringify(entity) + '\n版: ' + revision);
     } catch (_) { fail('旧 pull 応答を読み込めません。現在の表計算は変更していません。'); }
   });
 });
