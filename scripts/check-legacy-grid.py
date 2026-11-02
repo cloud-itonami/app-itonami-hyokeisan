@@ -58,6 +58,8 @@ attrs = {':sheet/type': [edn('Spreadsheet')], ':sheet/id': [edn('sheet:book:demo
 pull_obj = {'ok': True, 'graph': 'bfixture', 'entity': 'sheet:book:demo', 'attrs': attrs}
 pull = json.dumps(pull_obj, ensure_ascii=False, separators=(',', ':'))
 pull_book = 'HW3|' + frame('予算') + frame('LE2|' + frame(pull)) + frame(frame('n:0') + frame('A') + cells_a) + frame(frame('s:b') + frame('B') + cells_b)
+unicode_source_book = 'HW3|' + frame('予算') + frame('😀x') + frame(frame('n:0') + frame('A') + cells_a)
+malformed_source_book = 'HW3|' + frame('予算') + frame('LE1|1:x0:0:extra') + frame(frame('n:0') + frame('A') + cells_a)
 pull_candidate = 'HU1|' + frame(pull_book) + frame('n:0') + frame('1') + frame('1')
 pull_info = 'LP1|' + frame('bfixture') + frame('sheet:book:demo') + frame('7')
 def altered_pull(change):
@@ -101,6 +103,11 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(string=? (option-value-of [:option :string] (legacy-workbook-candidate "予算" ' + literal(small_metadata) + ' ' + literal(small_grid) + ') "bad") ' + literal(candidate) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-pull-candidate ' + literal(pull) + ') "bad") ' + literal(pull_candidate) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-pull-info ' + literal(pull) + ') "bad") ' + literal(pull_info) + ') ' + \
+    '(string=? (option-value-of [:option :string] (ui-legacy-part ' + literal(book) + ' "sheets") "bad") ' + literal(small_metadata) + ') ' + \
+    '(string=? (option-value-of [:option :string] (ui-legacy-part ' + literal(pull_book) + ' "pull") "bad") ' + literal(pull) + ') ' + \
+    '(not (option-some?-of [:option :string] (ui-legacy-part ' + literal(book) + ' "pull"))) ' + \
+    '(not (option-some?-of [:option :string] (ui-legacy-part ' + literal(unicode_source_book) + ' "title"))) ' + \
+    '(not (option-some?-of [:option :string] (ui-legacy-part ' + literal(malformed_source_book) + ' "title"))) ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-pull-candidate ' + literal(item) + ')))' for item in bad_pulls) + ' ' + \
     '(option-some?-of [:option :document] (ui-read ' + literal(candidate) + ')) ' + \
     '(not (option-some?-of [:option :string] (legacy-workbook-candidate "予算" ' + literal(small_metadata) + ' "{\\"A\\":[]}"))) ' + \

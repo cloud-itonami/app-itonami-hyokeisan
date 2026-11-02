@@ -21,7 +21,7 @@ attrs={':sheet/type':[edn('Spreadsheet')],':sheet/id':[edn('sheet:book:demo')],'
        ':sheet/title':[edn('予算')],':sheet/revision':['7'],':sheet/sheetsJson':[edn(meta)],
        ':sheet/gridJson':[edn(grid)],':sheet/unknown':[edn('保持')]}
 pull_obj={'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':attrs}
-pull=json.dumps(pull_obj,ensure_ascii=False,separators=(',',':'))
+pull=json.dumps(pull_obj,ensure_ascii=False,separators=(',',':'))+'\n'
 bad_pull=json.loads(pull);bad_pull['entity']='sheet:book:other';bad_pull=json.dumps(bad_pull,ensure_ascii=False,separators=(',',':'))
 hostile_pull=json.loads(pull);hostile_pull['graph']='<img src=x onerror=alert(1)>';hostile_pull=json.dumps(hostile_pull,ensure_ascii=False,separators=(',',':'))
 wide_meta='[{"sheetId":0,"title":"A"}]'
@@ -49,7 +49,7 @@ b=f('s:b')+f('B')+cell(1,1,'x')+cell(1,2,'=12/-3')+cell(2,2,'=9/2')
 book='HW3|'+f('予算')+f(provenance)+f(a)+f(b)
 expected='HU1|'+f(book)+f('n:0')+f('1')+f('1')
 pull_book='HW3|'+f('予算')+f('LE2|'+f(pull))+f(a)+f(b)
-pull_expected='HU1|'+f(pull_book)+f('n:0')+f('1')+f('1')
+pull_expected='HX1|2'+f(pull_book)+f('n:0')+f('1')+f('1')
 wide_source='LE1|'+f('Wide')+f(wide_meta)+f(wide_grid)
 wide_cells=''.join(cell(1,i,'1') for i in range(1,1025))
 wide_book='HW3|'+f('Wide')+f(wide_source)+f(f('n:0')+f('A')+wide_cells)
@@ -63,6 +63,7 @@ if not 34000 < len(near_expected.encode()) <= 35000:raise ValueError('near-limit
 try:
  target=pipe.call('Target.createTarget',{'url':'about:blank'})['targetId'];session=pipe.call('Target.attachToTarget',{'targetId':target,'flatten':True})['sessionId']
  pipe.call('Network.enable',{},session);pipe.call('Page.navigate',{'url':base+'site/index.html'},session)
+ download=out/'downloads';download.mkdir();pipe.call('Browser.setDownloadBehavior',{'behavior':'allow','downloadPath':str(download)})
  def ev(expr):
   r=pipe.call('Runtime.evaluate',{'expression':expr,'returnByValue':True},session)
   if 'exceptionDetails' in r:raise ValueError(r['exceptionDetails'])
@@ -80,6 +81,14 @@ try:
   pipe.call('DOM.enable',{},session);doc=pipe.call('DOM.getDocument',{},session)['root']['nodeId'];node=pipe.call('DOM.querySelector',{'nodeId':doc,'selector':selector},session)['nodeId']
   pipe.call('DOM.setFileInputFiles',{'nodeId':node,'files':[str(path)]},session)
  def stored():return ev('localStorage.getItem('+json.dumps(key)+')')
+ def export_source(part,expected):
+  filename={'title':'hyokeisan-legacy-title.txt','sheets':'hyokeisan-legacy-sheets.json','grid':'hyokeisan-legacy-grid.json','pull':'hyokeisan-legacy-pull.json'}[part]
+  path=download/filename
+  if path.exists():path.unlink()
+  ev("document.querySelector('[data-k=backup-legacy-"+part+"]').click()")
+  until=time.time()+90
+  while time.time()<until and not path.exists():time.sleep(.2)
+  if not path.exists() or path.read_bytes()!=expected.encode('utf-8'):raise ValueError(part+' original export differs')
  def preview():
   ev("document.getElementById('legacy-preview').click()")
   wait("document.getElementById('backup-dialog').open",'preview')
@@ -90,6 +99,7 @@ try:
   ev('Storage.prototype.setItem=window.originalSetter')
   if restore and not ev("Object.keys(localStorage).some(k=>k.startsWith("+json.dumps(key+'.preimport.')+")&&localStorage.getItem(k)==="+json.dumps(baseline,ensure_ascii=False)+")"):raise ValueError('backup missing')
  wait("document.querySelector('[data-k=c0]')!==null",'initial')
+ if ev("document.querySelector('[data-k^=backup-legacy-]')!==null"):raise ValueError('original export shown for new workbook')
  ev("(()=>{let e=document.querySelector('[data-k=c0]');e.value='既存';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
  wait("document.getElementById('status').textContent==='保存しました'",'baseline');baseline=stored()
  ev("document.getElementById('legacy-title').value='予算'")
@@ -141,6 +151,8 @@ try:
  saved=stored();ev('window.__reloadMarker=true');pipe.call('Page.reload',{},session);wait('window.__reloadMarker!==true','reload')
  wait("document.querySelector('[data-k=c0]')?.value==='x' && document.querySelector('[data-k=c1]')?.value==='=12/-3' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='4.5'",'second sheet division reopen')
  if stored()!=saved or provenance not in saved:raise ValueError('reopen changed data or provenance')
+ for part,value in [('title','予算'),('sheets',meta),('grid',grid)]:export_source(part,value)
+ if stored()!=saved:raise ValueError('legacy source export changed workbook')
  baseline=saved
  choose('#legacy-pull',files['bad-pull'])
  ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
@@ -177,6 +189,8 @@ try:
  ev('window.__reloadMarker=true');pipe.call('Page.reload',{},session);wait('window.__reloadMarker!==true','pull reload')
  wait("document.querySelector('[data-k=c0]')?.value==='雪'",'pull reopen')
  if stored()!=pull_expected:raise ValueError('pull reopen changed response or workbook')
+ export_source('pull',pull)
+ if stored()!=pull_expected:raise ValueError('pull source export changed workbook')
  ev("document.getElementById('legacy-title').value='Wide'")
  choose('#legacy-sheets',files['wide-meta']);choose('#legacy-grid',files['wide-grid']);preview()
  if stored()!=pull_expected or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='1':raise ValueError('wide preview changed state or failed')
@@ -194,6 +208,8 @@ try:
  ev("document.getElementById('backup-confirm').click()")
  wait("document.getElementById('status').textContent==='バックアップから復元しました。'",'near-limit commit')
  if stored()!=near_expected:raise ValueError('near-limit pull lost cells or provenance')
+ export_source('pull',near_pull)
+ if stored()!=near_expected:raise ValueError('near-limit source export changed state')
  choose('#legacy-pull',files['over-pull'])
  ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
  wait("document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'over-limit refusal')

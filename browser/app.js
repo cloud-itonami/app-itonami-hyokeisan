@@ -313,6 +313,7 @@ for (const kind of ['click', 'input']) mount.addEventListener(kind, e => {
   if (e.type === 'click' && (key.startsWith('backup-') || key === 'workbook-upgrade') && edits.size) { fail('未保存の入力を再保存または修正してください。'); return; }
   if (e.type === 'click' && key === 'backup-import') { backupFile.value = ''; backupFile.click(); return; }
   if (e.type === 'click' && key === 'backup-export') { pending = pending.then(exportBackup); return; }
+  if (e.type === 'click' && ['backup-legacy-pull', 'backup-legacy-title', 'backup-legacy-sheets', 'backup-legacy-grid'].includes(key)) { pending = pending.then(() => exportLegacy(key.slice(14))); return; }
   if (e.type === 'click' && key === 'backup-restore') { pending = pending.then(restoreBackup); return; }
   if (e.type === 'click' && key === 'workbook-upgrade') { pending = pending.then(previewUpgrade); return; }
   const captured = { key, value, focus: null, type: e.type, sequence: 0 };
@@ -336,6 +337,19 @@ function exportBackup() {
   link.href = url; link.download = snapshot.startsWith('HX1|') ? 'hyokeisan-backup.hx1' : snapshot.startsWith('HU1|') ? 'hyokeisan-backup.hu1' : 'hyokeisan-backup.hs1'; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   fail('バックアップのダウンロードを開始しました。');
+}
+async function exportLegacy(part) {
+  const files = { pull: 'hyokeisan-legacy-pull.json', title: 'hyokeisan-legacy-title.txt', sheets: 'hyokeisan-legacy-sheets.json', grid: 'hyokeisan-legacy-grid.json' };
+  try {
+    if (!Object.hasOwn(files, part) || draftBlocked || edits.size || typeof snapshot !== 'string') throw Error('unavailable');
+    const base = snapshot, basePersisted = persisted;
+    const output = await run(['legacy-source', base, part]);
+    if (!output.endsWith('\n') || edits.size || snapshot !== base || persisted !== basePersisted || localStorage.getItem(KEY) !== persisted) throw Error('state changed');
+    const url = URL.createObjectURL(new Blob([output.slice(0, -1)], { type: part === 'title' ? 'text/plain;charset=utf-8' : 'application/json' }));
+    const link = document.createElement('a'); link.href = url; link.download = files[part]; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    fail('旧データのダウンロードを開始しました。');
+  } catch (_) { fail('旧データを書き出せません。保存済みの表計算は変更していません。'); }
 }
 async function previewBackup(candidate, label) {
   const base = snapshot, basePersisted = persisted;

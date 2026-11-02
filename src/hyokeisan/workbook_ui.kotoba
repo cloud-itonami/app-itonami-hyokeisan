@@ -105,6 +105,42 @@
         (document-vector-conj acc (document-string (option-value-of [:option :string] value "")))))))
 (defn ui-button [key :string label :string] :document
   (sheet/leaf "button" (document-map :type (document-string "button") :data-k (document-string key)) label))
+;; Recover exactly one stored input. The caller must validate the workbook;
+;; provenance is untrusted and these frames do not authenticate its origin.
+(defn ui-legacy-part [book :string part :string] [:option :string]
+  (let [original (workbook/wf-original book)]
+    (if (not (option-some?-of [:option :string] original)) (option-none-of [:option :string])
+      (let [raw (option-value-of [:option :string] original "") n (string-byte-length raw)]
+        (if (or (< n 4) (not (= (string-code-point-at raw 0) 76))
+                (not (= (string-code-point-at raw 1) 69))
+                (not (or (= (string-code-point-at raw 2) 49) (= (string-code-point-at raw 2) 50)))
+                (not (= (string-code-point-at raw 3) 124))) (option-none-of [:option :string])
+          (let [prefix (string-substring raw 0 4) first (workbook/wf-read raw 4)]
+            (if (< (workbook/wf-start first) 0) (option-none-of [:option :string])
+              (if (string=? prefix "LE2|")
+                (if (and (string=? part "pull") (= (workbook/wf-end first) n))
+                  (option-some-of [:option :string] (workbook/wf-text raw first)) (option-none-of [:option :string]))
+                (if (not (string=? prefix "LE1|")) (option-none-of [:option :string])
+                  (let [second (workbook/wf-read raw (workbook/wf-end first))]
+                    (if (< (workbook/wf-start second) 0) (option-none-of [:option :string])
+                      (let [third (workbook/wf-read raw (workbook/wf-end second))]
+                        (if (or (< (workbook/wf-start third) 0) (not (= (workbook/wf-end third) n)))
+                          (option-none-of [:option :string])
+                          (cond (string=? part "title") (option-some-of [:option :string] (workbook/wf-text raw first))
+                                (string=? part "sheets") (option-some-of [:option :string] (workbook/wf-text raw second))
+                                (string=? part "grid") (option-some-of [:option :string] (workbook/wf-text raw third))
+                                :else (option-none-of [:option :string])))))))))))))))
+(defn ui-backup-tools [book :string] :document
+  (let [base (document-vector (ui-button "backup-export" "バックアップ") (ui-button "backup-import" "読み込む")
+                              (ui-button "backup-restore" "読み込み前に戻す"))]
+    (cond (option-some?-of [:option :string] (ui-legacy-part book "pull"))
+            (document-vector-conj base (ui-button "backup-legacy-pull" "旧 pull 応答を書き出す"))
+          (option-some?-of [:option :string] (ui-legacy-part book "title"))
+            (document-vector-conj (document-vector-conj (document-vector-conj base
+              (ui-button "backup-legacy-title" "旧タイトルを書き出す"))
+              (ui-button "backup-legacy-sheets" "旧シート情報を書き出す"))
+              (ui-button "backup-legacy-grid" "旧セル情報を書き出す"))
+          :else base)))
 (defn ui-cells [book :string id :string grid :document top :i64 left :i64 i :i64 acc :document] :document
   (if (= i 16) acc
     (let [label (string-concat (ui-col-name (+ left (rem i 4))) (string-from-i64 (+ top (quot i 4))))
@@ -135,8 +171,7 @@
           (sheet/el "div" (document-map :class (document-string "sheet"))
             (document-vector (sheet/leaf "h1" (document-map) "itonami Hyokeisan")
               (sheet/el "div" (document-map :class (document-string "tools"))
-                (document-vector (ui-button "backup-export" "バックアップ") (ui-button "backup-import" "読み込む")
-                  (ui-button "backup-restore" "読み込み前に戻す")))
+                (ui-backup-tools raw))
               (sheet/el "div" (document-map :class (document-string "tools"))
                 (document-vector (ui-button "sheet-prev" "前のシート") (ui-button "sheet-next" "次のシート")
                   (ui-button "sheet-add" "シート追加") (sheet/leaf "span" (document-map) (workbook/wf-text sheet-raw namef))))
