@@ -108,9 +108,13 @@ try:
  wait("document.querySelector('[data-k=c0]')!==null",'initial')
  ev("(()=>{let e=document.querySelector('[data-k=c0]');e.value='既存';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
  wait("document.getElementById('status').textContent==='保存しました'",'baseline');baseline=stored()
- ev("document.getElementById('legacy-title').value='予算'");choose('#legacy-sheets',files['sheets']);choose('#legacy-grid',files['grid']);preview()
+ ev("document.getElementById('legacy-title').value='予算'");choose('#legacy-sheets',files['sheets']);choose('#legacy-grid',files['invalid'])
+ ev("document.getElementById('status').textContent='';document.getElementById('legacy-preview').click()")
+ wait("document.getElementById('status').textContent.includes('旧データを読み込めません')",'missing sheet refused')
+ if stored()!=baseline or ev("document.getElementById('backup-dialog').open"):raise ValueError('missing sheet changed state')
+ choose('#legacy-grid',files['grid']);preview()
  assert stored()==baseline and ev("document.querySelector('#backup-preview [data-k=c0]')?.value")=='雪'
- assert ev("['数式 3 件','互換性と計算結果は確認されていません'].every(v=>document.getElementById('backup-label').textContent.includes(v))")
+ assert ev("['数式 3 件','互換性と計算結果は確認されていません','\"A\" (\"n:0\") A2','\"B\" (\"s:b\") B1','\"B\" (\"s:b\") B2'].every(v=>document.getElementById('backup-label').textContent.includes(v))")
  # A same-tab edit during a delayed audit must save without opening a stale preview.
  ev("document.getElementById('backup-cancel').click()")
  ev("window.raceWorker=window.Worker;window.auditPending=false;window.auditDone=false;window.Worker=class extends window.raceWorker {constructor(...a){super(...a);this.addEventListener('message',()=>{if(this.audit)window.auditDone=true})}postMessage(msg,...rest){if(msg.args[0]==='formula-audit'){this.audit=true;window.auditPending=true;setTimeout(()=>super.postMessage(msg,...rest),1500)}else super.postMessage(msg,...rest)}};document.getElementById('status').textContent='';document.getElementById('legacy-preview').click()")
@@ -148,8 +152,26 @@ try:
  preview()
  ev("document.getElementById('backup-confirm').click()");wait("document.getElementById('status').textContent.includes('復元しました')",'import')
  assert stored()==expected
+ # Preserve the selected sheet and calculated values across a fresh page load.
+ ev("document.querySelector('[data-k=sheet-next]').click()")
+ wait("document.querySelector('[data-k=c0]')?.value==='x' && document.getElementById('status').textContent==='保存しました' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='4.5'",'second sheet')
+ second=stored();ev('window.__sheetReload=true');pipe.call('Page.reload',{},session)
+ wait("window.__sheetReload!==true && document.querySelector('[data-k=c0]')?.value==='x' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='-4' && document.querySelector('[data-k=c5]')?.parentElement.querySelector('.value')?.textContent==='4.5'",'second sheet reload')
+ if stored()!=second:raise ValueError('second sheet reload changed snapshot')
  for part,value in [('title','予算'),('sheets',meta),('grid',grid)]:export_source(part,value)
- assert stored()==expected
+ ev("document.getElementById('status').textContent='待機';document.querySelector('[data-k=sheet-prev]').click()")
+ wait("document.querySelector('[data-k=c0]')?.value==='雪' && document.getElementById('status').textContent==='保存しました'",'first sheet restored')
+ if stored()!=expected:raise ValueError('first sheet restored snapshot differs')
+ # Invalid identity and untrusted display metadata must not modify the record.
+ before=record('current');choose('#legacy-pull',files['bad-pull'])
+ ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'bad identity refused')
+ if record('current')!=before or ev("document.getElementById('backup-dialog').open"):raise ValueError('bad pull identity changed state')
+ choose('#legacy-pull',files['hostile-pull']);ev("document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('backup-dialog').open",'hostile pull preview')
+ if not ev("document.getElementById('backup-label').textContent.includes('<img src=x')") or ev("document.querySelector('#backup-label img')!==null"):raise ValueError('hostile pull metadata rendered as markup')
+ ev("document.getElementById('backup-cancel').click()")
+ if record('current')!=before:raise ValueError('cancelled hostile pull changed state')
  choose('#legacy-pull',files['pull']);ev("document.getElementById('legacy-pull-preview').click()");wait("document.getElementById('backup-dialog').open",'pull preview')
  assert stored()==expected and ev("['数式 3 件','bfixture','sheet:book:demo','版: 7','権限による欠落'].every(v=>document.getElementById('backup-label').textContent.includes(v))")
  ev("document.getElementById('backup-confirm').click()");wait("document.getElementById('status').textContent.includes('復元しました')",'pull import')
@@ -179,7 +201,44 @@ try:
  ev('window.__old=true');pipe.call('Page.reload',{},session)
  wait("window.__old!==true && document.querySelector('[data-k=c0]')?.value==='1'",'near-limit reload')
  assert stored()==near_expected
- report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','near-limit-pull-restore-reload'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
+ # A too-large imported workbook is refused without changing the current record.
+ before=record('current');choose('#legacy-pull',files['over-pull'])
+ ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'over-limit refused')
+ if record('current')!=before or ev("document.getElementById('backup-dialog').open"):raise ValueError('over-limit pull changed state')
+ # Another actual tab commits after preview; stale confirmation must preserve it.
+ choose('#legacy-pull',files['pull']);ev("document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('backup-dialog').open",'stale pull preview')
+ backup='backup:'+str(before['revision']).zfill(16)
+ if record(backup) is not None:raise ValueError('stale-preview backup already exists')
+ other_target=pipe.call('Target.createTarget',{'url':'about:blank'})['targetId']
+ other=pipe.call('Target.attachToTarget',{'targetId':other_target,'flatten':True})['sessionId']
+ pipe.call('Page.enable',{},other);pipe.call('Page.navigate',{'url':base+'site/index.html'},other)
+ def other_ev(expr):
+  r=pipe.call('Runtime.evaluate',{'expression':expr,'returnByValue':True},other)
+  if 'exceptionDetails' in r:raise ValueError(r['exceptionDetails'])
+  return r.get('result',{}).get('value')
+ def wait_other(expr,label):
+  deadline=time.time()+120
+  while time.time()<deadline:
+   try:
+    if other_ev(expr):return
+   except RuntimeError as e:
+    if not any(x in str(e) for x in ('Inspected target navigated or closed','Execution context was destroyed','Cannot find context with specified id')):raise
+   time.sleep(.2)
+  raise TimeoutError(label)
+ wait_other("document.querySelector('[data-k=c0]')?.value==='1'",'other tab did not load')
+ other_ev("document.getElementById('status').textContent='待機';(()=>{let e=document.querySelector('[data-k=c0]');e.value='別タブの入力';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
+ wait_other("document.getElementById('status').textContent==='保存しました'",'other tab did not save')
+ winner=record('current')
+ if winner['revision']<=before['revision'] or '別タブの入力' not in winner['value']:raise ValueError('other tab update missing')
+ ev("document.getElementById('status').textContent='待機';document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent.includes('別のタブ') || document.getElementById('status').textContent.includes('復元しました')",'stale pull confirmation result')
+ if not ev("document.getElementById('status').textContent.includes('別のタブ')") or record('current')!=winner or record(backup) is not None:raise ValueError('stale pull overwrote other tab or made a backup')
+ pipe.call('Target.closeTarget',{'targetId':other_target})
+ requests=[event['params']['request']['url'] for event in pipe.events if event.get('method')=='Network.requestWillBeSent']
+ if not requests or any(not url.startswith(base) for url in requests):raise ValueError('unexpected network request')
+ report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-refusal','hostile-pull-text-only','near-limit-pull-restore-reload','over-limit-refusal','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
  (out/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(report['status'])
 finally:
  pipe.close();server.shutdown();server.server_close()

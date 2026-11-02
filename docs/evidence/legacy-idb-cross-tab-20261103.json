@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-03",
+  "status": "PASS_IDB_LEGACY_CROSS_TAB_AND_BOUNDARIES",
+  "baseHead": "c067fe773c82bfc6defb0416d442199403957eaa",
+  "testSha256": "57a5742fd6be6f7e1d9f04f474c9ec1f0bc7767c2d98e74d365a8585b80bab5a",
+  "wasmSha256": "707544cacd734d4739320635affe993b9f464cc0d84f9d996296306df260b7fa",
+  "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+  "storageRevision": "d569c4cc7e884c58dc5867c38731c9465bac70dc",
+  "browser": "Chrome 156 on macOS ARM, loopback",
+  "test": {
+    "status": "PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC",
+    "nearSnapshotBytes": 34518,
+    "nearCells": 1600,
+    "nearBackupVerified": true,
+    "checks": [
+      "two-file-preview-formula-audit",
+      "preview-edit-race",
+      "audit-failure-refusal",
+      "hostile-and-bounded-formula-audit",
+      "backup-and-current-failure-rollback",
+      "malformed-long-pull-refused",
+      "atomic-confirm",
+      "source-export-exact",
+      "pull-preview-identity-formula-audit",
+      "pull-source-export-exact",
+      "second-sheet-formula-reload",
+      "missing-sheet-refusal",
+      "bad-identity-refusal",
+      "hostile-pull-text-only",
+      "near-limit-pull-restore-reload",
+      "over-limit-refusal",
+      "stale-other-tab-pull-refusal",
+      "local-requests-only"
+    ],
+    "scope": "synthetic data and Chrome loopback; source authority and real-user migration unverified"
+  },
+  "negativeControl": {
+    "mutation": "disable both pre-commit storage verification and transactional compare-and-swap",
+    "outcome": "two-tab stale preview test detected overwritten winner",
+    "exit": 1
+  },
+  "limitations": [
+    "Synthetic data, two browser tabs, and a local HTTP origin; source authority and real user migration remain unverified.",
+    "Observed request check covers the instrumented main tab, not OS-level network monitoring.",
+    "Injected code and write failures do not establish power-loss behavior.",
+    "Remaining tests in the old localStorage harness have not all been ported; no QEMU or production publication."
+  ]
+}
