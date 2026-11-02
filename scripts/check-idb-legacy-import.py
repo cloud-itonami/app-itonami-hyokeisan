@@ -81,6 +81,7 @@ try:
   pipe.call('DOM.enable',{},session);doc=pipe.call('DOM.getDocument',{},session)['root']['nodeId'];node=pipe.call('DOM.querySelector',{'nodeId':doc,'selector':selector},session)['nodeId']
   pipe.call('DOM.setFileInputFiles',{'nodeId':node,'files':[str(path)]},session)
  def stored():return ev('new Promise((resolve,reject)=>{const r=indexedDB.open("itonami.office.hyokeisan.v2",1);r.onsuccess=()=>{const d=r.result,t=d.transaction("records","readonly"),g=t.objectStore("records").get("current");g.onsuccess=()=>resolve(g.result?.value??null);g.onerror=()=>reject(Error("read"));t.oncomplete=()=>d.close()};r.onerror=()=>reject(Error("open"))})',True)
+ def record(key):return ev('new Promise((resolve,reject)=>{const r=indexedDB.open("itonami.office.hyokeisan.v2",1);r.onsuccess=()=>{const d=r.result,t=d.transaction("records","readonly"),g=t.objectStore("records").get('+json.dumps(key)+');g.onsuccess=()=>resolve(g.result||null);g.onerror=()=>reject(Error("read"));t.oncomplete=()=>d.close()};r.onerror=()=>reject(Error("open"))})',True)
  def export_source(part,expected):
   filename={'title':'hyokeisan-legacy-title.txt','sheets':'hyokeisan-legacy-sheets.json','grid':'hyokeisan-legacy-grid.json','pull':'hyokeisan-legacy-pull.json'}[part]
   path=download/filename
@@ -113,7 +114,22 @@ try:
  ev("document.getElementById('backup-confirm').click()");wait("document.getElementById('status').textContent.includes('復元しました')",'pull import')
  assert stored()==pull_expected
  export_source('pull',pull)
- report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','checks':['two-file-preview-formula-audit','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
+ before=record('current')
+ choose('#legacy-pull',files['near-pull'])
+ ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('backup-dialog').open || document.getElementById('status').textContent.includes('読み込めません')",'near-limit preview')
+ if not ev("document.getElementById('backup-dialog').open"):
+  assert stored()==pull_expected
+  raise ValueError('near-limit candidate refused and prior state was preserved')
+ assert stored()==pull_expected and ev("document.querySelector('#backup-preview [data-k=c0]')?.value")=='1'
+ ev("document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent.includes('復元しました')",'near-limit commit')
+ assert stored()==near_expected and record('backup:'+str(before['revision']).zfill(16))==before
+ export_source('pull',near_pull)
+ ev('window.__old=true');pipe.call('Page.reload',{},session)
+ wait("window.__old!==true && document.querySelector('[data-k=c0]')?.value==='1'",'near-limit reload')
+ assert stored()==near_expected
+ report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','near-limit-pull-restore-reload'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
  (out/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(report['status'])
 finally:
  pipe.close();server.shutdown();server.server_close()
