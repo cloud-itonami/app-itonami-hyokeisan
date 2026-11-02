@@ -4,7 +4,7 @@
 Usage: python3 scripts/check-browser-ime.py AMU_DIR BUILD_DIR OUTPUT_DIR CHROME
 This does not qualify an OS IME or production release.
 """
-import functools,http.server,importlib.util,json,threading,time,sys
+import functools,http.server,importlib.util,json,os,threading,time,sys
 from pathlib import Path
 amu,build,out,chrome=map(lambda s:Path(s).resolve(),sys.argv[1:])
 out.mkdir(parents=True,exist_ok=False);profile=out/'profile';profile.mkdir()
@@ -27,12 +27,18 @@ try:
    time.sleep(.2)
   raise TimeoutError(label+': '+str(ev("document.getElementById('status')?.textContent")))
  wait("document.querySelector('[data-k=c0]') !== null",'initial')
+ if os.environ.get('HYOKEISAN_TEST_WORKBOOK') == '1':
+  ev("document.querySelector('[data-k=workbook-upgrade]').click()")
+  wait("document.getElementById('backup-dialog').open",'workbook upgrade preview')
+  ev("document.getElementById('backup-confirm').click()")
+  wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.startsWith('HU1|') && document.getElementById('status').textContent==='バックアップから復元しました。'",'workbook upgraded')
+ baseline=ev("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
  ev("(()=>{let e=document.querySelector('[data-k=c0]');window.imeEvents=[];for(const t of ['compositionstart','compositionupdate','compositionend','beforeinput','input'])e.addEventListener(t,x=>window.imeEvents.push({type:x.type,composing:!!x.isComposing,trusted:x.isTrusted}));e.focus();e.select();})()")
  pipe.call('Input.imeSetComposition',{'text':'日本','selectionStart':2,'selectionEnd':2},session)
  wait("document.querySelector('[data-k=c0]')?.value.includes('日本')",'composition text')
  time.sleep(1)
  mid={'value':ev("document.querySelector('[data-k=c0]').value"),'stored':ev("localStorage.getItem('itonami.hyokeisan.candidate.hs1')"),'events':ev('window.imeEvents')}
- if mid['stored'] is not None: raise ValueError('uncommitted composition saved')
+ if mid['stored'] != baseline: raise ValueError('uncommitted composition saved')
  pipe.call('Input.insertText',{'text':'日本語'},session)
  wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('日本語') && document.getElementById('status').textContent === '保存しました'",'committed IME')
  result={'status':'PASS_CDP_SYNTHETIC_IME','mid':mid,'final':{'value':ev("document.querySelector('[data-k=c0]').value"),'events':ev('window.imeEvents')},'limitations':['CDP-generated browser events; not a physical OS IME test','loopback local candidate; not a release']}

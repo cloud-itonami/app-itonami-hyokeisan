@@ -8,7 +8,6 @@ import base64
 import hashlib
 import importlib.util
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -28,13 +27,8 @@ if hashlib.sha256(raw).hexdigest() != pin['sha256']:
 for name in ('index.html', 'style.css', 'app.js'):
     shutil.copyfile(root / 'browser' / name, out / name)
 shutil.copyfile(amu / 'runtime/wasm32-browser-static-host.js', out / 'worker.js')
-source = (root / 'src/hyokeisan/sheet.kotoba').read_text(encoding='utf-8')
-source, n = re.subn(r'\A\(ns\s+hyokeisan\.sheet[\s\S]*?\(:export \[[^\]]*\]\)\)',
-                    '(ns hyokeisan.sheet (:export [main]))', source, count=1)
-anchor = '(defn main [] :i64 (test-sheet))'
-if n != 1 or source.count(anchor) != 1:
-    raise SystemExit('unexpected editor source')
-source = source[:source.index(anchor)] + (root / 'src/hyokeisan/browser-entry.kotoba').read_text(encoding='utf-8')
+from browser_source import stage
+source = stage(root)
 (out / 'program.kotoba').write_text(source, encoding='utf-8')
 spec = importlib.util.spec_from_file_location('mac', amu / 'scripts/seed/check-aiueos-user-macos-native.py')
 mac = importlib.util.module_from_spec(spec)
@@ -43,7 +37,7 @@ compiler = amu / 'seed/bootstrap/aarch64-macos/amu-full-root.macho'
 mac.native_run(compiler, out, 'compile', 'program.kotoba', '--target', 'wasm32-browser', '--output', 'program.wasm')
 wasm = (out / 'program.wasm').read_bytes()
 desc = {'schema': 'kotoba.app.client-runtime.v1', 'target': 'browser', 'profile': 'trusted-page-v1',
-        'entry': 'index.html', 'local-state': {'adapter': 'localstorage', 'schema': 'itonami.hyokeisan.candidate.hs1', 'version': 1},
+        'entry': 'index.html', 'local-state': {'adapter': 'localstorage', 'schema': 'itonami.hyokeisan.candidate.hs1-hu1', 'version': 2},
         'workers': [{'id': 'hyokeisan-worker', 'entry': 'worker.js', 'protocol': 'wasm32-browser-static.v1'}], 'operations': []}
 (out / 'client-runtime.json').write_text(json.dumps(desc, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 config = ('export const descriptor = ' + json.dumps(desc, ensure_ascii=False) + ';\n'

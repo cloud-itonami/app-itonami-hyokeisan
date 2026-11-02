@@ -11,6 +11,11 @@
       (let [out (typed-cap-call :io/write :string :string
                   (string-concat (option-value-of [:option :string] encoded "") "\n"))] 0)
       2)))
+(defn browser-emit-wire [encoded [:option :string]] :i64
+  (if (option-some?-of [:option :string] encoded)
+    (let [out (typed-cap-call :io/write :string :string
+                (string-concat (option-value-of [:option :string] encoded "") "\n"))] 0)
+    2))
 
 ;; Encode the editor's declarative view, not browser objects. Every node is
 ;; tag, class, type, data-k, value, text, accessible label and child count, followed by children.
@@ -34,10 +39,13 @@
 
 (defn browser-render [raw :string] :i64
   (if (> (string-byte-length raw) 35000) 3
-    (let [decoded (snap-decode raw)]
-      (if (option-some?-of [:option :document] decoded)
-        (let [state (option-value-of [:option :document] decoded (init))
-              result (browser-view-node (view state) "BV2|")
+    (let [tree (if (ui-prefix? raw) (ui-view raw)
+                 (let [decoded (snap-decode raw)]
+                   (if (option-some?-of [:option :document] decoded)
+                     (option-some-of [:option :document] (view (option-value-of [:option :document] decoded (init))))
+                     (option-none-of [:option :document]))))]
+      (if (option-some?-of [:option :document] tree)
+        (let [result (browser-view-node (option-value-of [:option :document] tree (document-null)) "BV2|")
               out (typed-cap-call :io/write :string :string (string-concat result "\n"))] 0)
         3))))
 
@@ -46,6 +54,7 @@
     (cond
       (and (string=? argc "1") (string=? op "init")) (browser-emit (init))
       (and (string=? argc "2") (string=? op "view")) (browser-render (browser-arg "1"))
+      (and (string=? argc "2") (string=? op "upgrade")) (browser-emit-wire (ui-from-hs1 (browser-arg "1")))
       (and (string=? argc "5") (string=? op "step"))
         (let [raw (browser-arg "1") target (browser-arg "2")
               kind (browser-arg "3") value (browser-arg "4")]
@@ -53,8 +62,9 @@
                   (> (string-byte-length value) 128)
                   (not (or (string=? kind "click") (string=? kind "input"))))
             3
-            (let [decoded (snap-decode raw)]
-              (if (option-some?-of [:option :document] decoded)
-                (browser-emit (step (option-value-of [:option :document] decoded (init)) target kind value))
-                3))))
+            (if (ui-prefix? raw) (browser-emit-wire (ui-step raw target kind value))
+              (let [decoded (snap-decode raw)]
+                (if (option-some?-of [:option :document] decoded)
+                  (browser-emit (step (option-value-of [:option :document] decoded (init)) target kind value))
+                  3)))))
       :else 4)))

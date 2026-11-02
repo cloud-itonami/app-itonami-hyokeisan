@@ -1,0 +1,142 @@
+(ns hyokeisan.workbook-ui
+  (:export [ui-from-hs1 ui-view ui-step])
+  (:require [hyokeisan.sheet :as sheet]
+            [hyokeisan.workbook :as workbook]
+            [hyokeisan.migrate-hs1 :as migrate]))
+
+;; The browser adapter stores this view state as well as the entire HW3 book.
+;; Sheet and page navigation live here; the host only renders the returned tree.
+(defn ui-prefix? [s :string] :bool
+  (if (< (string-byte-length s) 4) false
+    (if (not (= (string-code-point-at s 0) 72)) false
+      (if (not (= (string-code-point-at s 1) 85)) false
+        (if (not (= (string-code-point-at s 2) 49)) false
+          (= (string-code-point-at s 3) 124))))))
+(defn ui-sheet-at [raw :string wanted :i64] [:option :string]
+  (loop [pos (workbook/wf-sheet-start raw) i 0]
+    (if (= pos (string-byte-length raw)) (option-none-of [:option :string])
+      (let [f (workbook/wf-read raw pos)]
+        (if (= i wanted) (option-some-of [:option :string] (workbook/wf-text raw f))
+          (recur (workbook/wf-end f) (+ i 1)))))))
+(defn ui-sheet-index [raw :string id :string] :i64
+  (loop [pos (workbook/wf-sheet-start raw) i 0]
+    (if (= pos (string-byte-length raw)) -1
+      (let [f (workbook/wf-read raw pos) item (workbook/wf-text raw f) idf (workbook/wf-read item 0)]
+        (if (string=? (workbook/wf-text item idf) id) i
+          (recur (workbook/wf-end f) (+ i 1)))))))
+(defn ui-wrap [raw :string id :string top :i64 left :i64] [:option :string]
+  (if (or (not (workbook/wf-valid? raw)) (< (ui-sheet-index raw id) 0)
+          (< top 1) (> top 1048573) (not (= (rem (- top 1) 4) 0))
+          (< left 1) (> left 16381) (not (= (rem (- left 1) 4) 0)))
+    (option-none-of [:option :string])
+    (let [out (string-concat "HU1|" (string-concat (workbook/wf-frame raw)
+                (string-concat (workbook/wf-frame id)
+                  (string-concat (workbook/wf-frame (string-from-i64 top))
+                                 (workbook/wf-frame (string-from-i64 left))))))]
+      (if (<= (string-byte-length out) 35000) (option-some-of [:option :string] out)
+        (option-none-of [:option :string])))))
+(defn ui-read [state :string] [:option :document]
+  (if (or (> (string-byte-length state) 35000) (not (ui-prefix? state))) (option-none-of [:option :document])
+    (let [bf (workbook/wf-read state 4)]
+      (if (< (workbook/wf-start bf) 0) (option-none-of [:option :document])
+        (let [idf (workbook/wf-read state (workbook/wf-end bf))]
+          (if (< (workbook/wf-start idf) 0) (option-none-of [:option :document])
+            (let [tf (workbook/wf-read state (workbook/wf-end idf))]
+              (if (< (workbook/wf-start tf) 0) (option-none-of [:option :document])
+                (let [lf (workbook/wf-read state (workbook/wf-end tf))]
+                  (if (or (< (workbook/wf-start lf) 0) (not (= (workbook/wf-end lf) (string-byte-length state))))
+                    (option-none-of [:option :document])
+                    (let [raw (workbook/wf-text state bf) id (workbook/wf-text state idf)
+                          top (workbook/wf-number-frame state tf 1048573) left (workbook/wf-number-frame state lf 16381)]
+                      (if (and (workbook/wf-valid? raw) (>= (ui-sheet-index raw id) 0)
+                               (>= top 1) (>= left 1) (= (rem (- top 1) 4) 0) (= (rem (- left 1) 4) 0))
+                        (option-some-of [:option :document]
+                          (document-map :book (document-string raw) :id (document-string id)
+                                        :top (document-i64 top) :left (document-i64 left)))
+                        (option-none-of [:option :document])))))))))))))
+(defn ui-int [d :document] :i64
+  (option-value-of [:option :i64] (document-i64-value d) -1))
+(defn ui-from-hs1 [raw :string] [:option :string]
+  (let [book (migrate/hs1-to-workbook raw)]
+    (if (option-some?-of [:option :string] book)
+      (ui-wrap (option-value-of [:option :string] book "") "hs1-sheet-1" 1 1)
+      (option-none-of [:option :string]))))
+(defn ui-sheet-move [book :string id :string delta :i64 top :i64 left :i64] [:option :string]
+  (let [index (ui-sheet-index book id) other (ui-sheet-at book (+ index delta))]
+    (if (or (< (+ index delta) 0) (not (option-some?-of [:option :string] other)))
+      (ui-wrap book id top left)
+      (let [item (option-value-of [:option :string] other "") f (workbook/wf-read item 0)]
+        (ui-wrap book (workbook/wf-text item f) 1 1)))))
+(defn ui-new-sheet [book :string n :i64] [:option :string]
+  (loop [n n]
+   (if (> n 1024) (option-none-of [:option :string])
+    (let [id (string-concat "sheet-" (string-from-i64 n))]
+      (if (>= (ui-sheet-index book id) 0) (recur (+ n 1))
+        (let [next (workbook/wf-add-sheet book id (string-concat "Sheet " (string-from-i64 n)))]
+          (if (option-some?-of [:option :string] next)
+            (ui-wrap (option-value-of [:option :string] next "") id 1 1) (option-none-of [:option :string]))))))))
+(defn ui-step [state :string target :string kind :string value :string] [:option :string]
+  (let [parsed (ui-read state)]
+    (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :string])
+      (let [p (option-value-of [:option :document] parsed (document-null))
+            raw (sheet/dstr (sheet/dget p :book)) id (sheet/dstr (sheet/dget p :id))
+            top (ui-int (sheet/dget p :top)) left (ui-int (sheet/dget p :left))
+            index (sheet/key-index target 0)]
+        (cond (and (string=? kind "input") (>= index 0) (<= (string-byte-length value) 128))
+                (let [next (workbook/wf-put raw id (+ top (quot index 4)) (+ left (rem index 4)) value)]
+                  (if (option-some?-of [:option :string] next)
+                    (ui-wrap (option-value-of [:option :string] next "") id top left) (option-none-of [:option :string])))
+              (and (string=? kind "click") (string=? target "sheet-prev")) (ui-sheet-move raw id -1 top left)
+              (and (string=? kind "click") (string=? target "sheet-next")) (ui-sheet-move raw id 1 top left)
+              (and (string=? kind "click") (string=? target "sheet-add")) (ui-new-sheet raw 1)
+              (and (string=? kind "click") (string=? target "page-up")) (ui-wrap raw id (if (> top 1) (- top 4) top) left)
+              (and (string=? kind "click") (string=? target "page-down")) (ui-wrap raw id (if (< top 1048573) (+ top 4) top) left)
+              (and (string=? kind "click") (string=? target "page-left")) (ui-wrap raw id top (if (> left 1) (- left 4) left))
+              (and (string=? kind "click") (string=? target "page-right")) (ui-wrap raw id top (if (< left 16381) (+ left 4) left))
+              :else (option-none-of [:option :string]))))))
+(defn ui-col-name [col :i64] :string
+  (let [n (- col 1) k (rem n 26) prefix (quot n 26) alphabet "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+    (string-concat (if (> prefix 0) (ui-col-name prefix) "") (string-substring alphabet k (+ k 1)))))
+(defn ui-project [raw :string id :string top :i64 left :i64 i :i64 acc :document] :document
+  (if (= i 16) acc
+    (let [value (workbook/wf-find-sheet-cell raw (workbook/wf-sheet-start raw) id (+ top (quot i 4)) (+ left (rem i 4)))]
+      (ui-project raw id top left (+ i 1)
+        (document-vector-conj acc (document-string (option-value-of [:option :string] value "")))))))
+(defn ui-button [key :string label :string] :document
+  (sheet/leaf "button" (document-map :type (document-string "button") :data-k (document-string key)) label))
+(defn ui-cells [grid :document top :i64 left :i64 i :i64 acc :document] :document
+  (if (= i 16) acc
+    (let [label (string-concat (ui-col-name (+ left (rem i 4))) (string-from-i64 (+ top (quot i 4))))
+          text (sheet/cell-text grid i)
+          display (if (and (= top 1) (= left 1)) (sheet/shown grid i)
+                    (if (and (> (string-byte-length text) 0) (= (string-code-point-at text 0) 61)) "#未計算" text))]
+      (ui-cells grid top left (+ i 1)
+        (document-vector-conj acc
+          (sheet/el "div" (document-map :class (document-string "cell"))
+            (document-vector (sheet/leaf "span" (document-map :class (document-string "label")) label)
+              (sheet/leaf "input" (document-map :data-k (document-string (sheet/index-key i)) :type (document-string "text")
+                :aria-label (document-string (string-concat "セル " label)) :value (document-string text)) "")
+              (sheet/leaf "span" (document-map :class (document-string "value")) display))))))))
+(defn ui-view [state :string] [:option :document]
+  (let [parsed (ui-read state)]
+    (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :document])
+      (let [p (option-value-of [:option :document] parsed (document-null))
+            raw (sheet/dstr (sheet/dget p :book)) id (sheet/dstr (sheet/dget p :id))
+            top (ui-int (sheet/dget p :top)) left (ui-int (sheet/dget p :left))
+            sheet-raw (option-value-of [:option :string] (ui-sheet-at raw (ui-sheet-index raw id)) "")
+            idf (workbook/wf-read sheet-raw 0) namef (workbook/wf-read sheet-raw (workbook/wf-end idf))
+            grid (ui-project raw id top left 0 (document-vector))]
+        (option-some-of [:option :document]
+          (sheet/el "div" (document-map :class (document-string "sheet"))
+            (document-vector (sheet/leaf "h1" (document-map) "itonami Hyokeisan")
+              (sheet/el "div" (document-map :class (document-string "tools"))
+                (document-vector (ui-button "backup-export" "バックアップ") (ui-button "backup-import" "読み込む")
+                  (ui-button "backup-restore" "読み込み前に戻す")))
+              (sheet/el "div" (document-map :class (document-string "tools"))
+                (document-vector (ui-button "sheet-prev" "前のシート") (ui-button "sheet-next" "次のシート")
+                  (ui-button "sheet-add" "シート追加") (sheet/leaf "span" (document-map) (workbook/wf-text sheet-raw namef))))
+              (sheet/el "div" (document-map :class (document-string "tools"))
+                (document-vector (ui-button "page-up" "上") (ui-button "page-down" "下")
+                  (ui-button "page-left" "左") (ui-button "page-right" "右")))
+              (sheet/leaf "p" (document-map) "数式計算は各シートの A1:D4 内の対応形式に限ります。範囲外は未計算です。")
+              (sheet/el "main" (document-map :class (document-string "grid")) (ui-cells grid top left 0 (document-vector))))))))))

@@ -135,7 +135,8 @@
                          (document-vector
                           (leaf "button" (document-map :type (document-string "button") :data-k (document-string "backup-export")) "バックアップ")
                           (leaf "button" (document-map :type (document-string "button") :data-k (document-string "backup-import")) "読み込む")
-                          (leaf "button" (document-map :type (document-string "button") :data-k (document-string "backup-restore")) "読み込み前に戻す")))
+                          (leaf "button" (document-map :type (document-string "button") :data-k (document-string "backup-restore")) "読み込み前に戻す")
+                          (leaf "button" (document-map :type (document-string "button") :data-k (document-string "workbook-upgrade")) "複数シートへ移行")))
                      (el "main" (document-map :class (document-string "grid")) (view-cells s 0 (document-vector))))))
 (defn test-sheet [] :i64
   (let [s (step (step (step (step (step (init) "c0" "input" "3") "c1" "input" "4") "c4" "input" "=A1+B1") "c5" "input" "=SUM(A1:B2)") "c2" "input" "=SUM(A1:B1)")

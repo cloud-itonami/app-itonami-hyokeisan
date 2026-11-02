@@ -2,7 +2,7 @@
 """Check the browser warning for a failed synthetic edit, not crash durability.
 Usage: python3 scripts/check-browser-unload.py AMU_DIR BUILD_DIR OUTPUT_DIR CHROME
 """
-import functools,http.server,importlib.util,json,threading,time,sys
+import functools,http.server,importlib.util,json,os,threading,time,sys
 from pathlib import Path
 amu,build,out,chrome=map(lambda s:Path(s).resolve(),sys.argv[1:]);out.mkdir(parents=True,exist_ok=False);profile=out/'profile';profile.mkdir()
 spec=importlib.util.spec_from_file_location('browser',amu/'scripts/seed/check-wasm32-browser.py');browser=importlib.util.module_from_spec(spec);spec.loader.exec_module(browser)
@@ -23,6 +23,11 @@ try:
    time.sleep(.2)
   raise TimeoutError(label+': '+str(ev("document.getElementById('status')?.textContent")))
  wait("document.querySelector('[data-k=c0]') !== null",'initial')
+ if os.environ.get('HYOKEISAN_TEST_WORKBOOK') == '1':
+  ev("document.querySelector('[data-k=workbook-upgrade]').click()")
+  wait("document.getElementById('backup-dialog').open",'workbook upgrade preview')
+  ev("document.getElementById('backup-confirm').click()")
+  wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.startsWith('HU1|') && document.getElementById('status').textContent==='バックアップから復元しました。'",'workbook upgraded')
  rect=ev("(()=>{const r=document.querySelector('[data-k=c0]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()")
  pipe.call('Input.dispatchMouseEvent',{'type':'mousePressed','x':rect['x'],'y':rect['y'],'button':'left','clickCount':1},session)
  pipe.call('Input.dispatchMouseEvent',{'type':'mouseReleased','x':rect['x'],'y':rect['y'],'button':'left','clickCount':1},session)

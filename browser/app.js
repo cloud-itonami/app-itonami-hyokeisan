@@ -270,10 +270,11 @@ for (const kind of ['click', 'input']) mount.addEventListener(kind, e => {
     if (!composing.has(key)) pending = pending.then(() => dispatch(captured));
     return;
   }
-  if (e.type === 'click' && key.startsWith('backup-') && edits.size) { fail('未保存の入力を再保存または修正してください。'); return; }
+  if (e.type === 'click' && (key.startsWith('backup-') || key === 'workbook-upgrade') && edits.size) { fail('未保存の入力を再保存または修正してください。'); return; }
   if (e.type === 'click' && key === 'backup-import') { backupFile.value = ''; backupFile.click(); return; }
   if (e.type === 'click' && key === 'backup-export') { pending = pending.then(exportBackup); return; }
   if (e.type === 'click' && key === 'backup-restore') { pending = pending.then(restoreBackup); return; }
+  if (e.type === 'click' && key === 'workbook-upgrade') { pending = pending.then(previewUpgrade); return; }
   const captured = { key, value, focus: null, type: e.type, sequence: 0 };
   pending = pending.then(() => dispatch(captured));
 });
@@ -292,17 +293,25 @@ function exportBackup() {
   if (typeof snapshot !== 'string') return;
   const url = URL.createObjectURL(new Blob([snapshot], { type: 'application/octet-stream' }));
   const link = document.createElement('a');
-  link.href = url; link.download = 'hyokeisan-backup.hs1'; link.click();
+  link.href = url; link.download = snapshot.startsWith('HU1|') ? 'hyokeisan-backup.hu1' : 'hyokeisan-backup.hs1'; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   fail('バックアップのダウンロードを開始しました。');
 }
 async function previewBackup(candidate, label) {
-  if (typeof candidate !== 'string' || !candidate.startsWith('HS1|') || encoder.encode(candidate).length > LIMIT) throw Error('invalid backup');
+  if (typeof candidate !== 'string' || !(candidate.startsWith('HS1|') || candidate.startsWith('HU1|')) || encoder.encode(candidate).length > LIMIT) throw Error('invalid backup');
   const tree = parseTree(await run(['view', candidate]));
   proposedBackup = candidate;
   document.getElementById('backup-label').textContent = label;
   backupPreview.replaceChildren(tree);
   backupDialog.showModal();
+}
+async function previewUpgrade() {
+  try {
+    if (edits.size || typeof snapshot !== 'string' || !snapshot.startsWith('HS1|')) throw Error('upgrade unavailable');
+    const result = await run(['upgrade', snapshot]);
+    if (!result.endsWith('\n') || !result.startsWith('HU1|')) throw Error('upgrade refused');
+    await previewBackup(result.slice(0, -1), '複数シートへの移行内容です。確定前の表もブラウザに保存します。');
+  } catch (_) { fail('移行内容を確認できません。保存済みの表は変更していません。'); }
 }
 backupFile.addEventListener('change', () => {
   const file = backupFile.files[0];

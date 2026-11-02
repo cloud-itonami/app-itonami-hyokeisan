@@ -4,7 +4,7 @@
 Usage: python3 scripts/check-browser-session-draft.py AMU_DIR BUILD_DIR OUTPUT_DIR CHROME
 This does not establish closed-tab, browser-crash, OS, or power-loss durability.
 """
-import functools,http.server,importlib.util,json,threading,time,sys
+import functools,http.server,importlib.util,json,os,threading,time,sys
 from pathlib import Path
 amu,build,out,chrome=map(lambda s:Path(s).resolve(),sys.argv[1:]);out.mkdir(parents=True,exist_ok=False);profile=out/'profile';profile.mkdir();downloads=out/'downloads';downloads.mkdir();program_sha=json.loads((build/'build-receipt.json').read_text())['wasmSha256']
 spec=importlib.util.spec_from_file_location('browser',amu/'scripts/seed/check-wasm32-browser.py');browser=importlib.util.module_from_spec(spec);spec.loader.exec_module(browser)
@@ -41,6 +41,11 @@ try:
  def reload_accept():
   evaluate('window.__oldDocument=true');pipe.send('Page.reload',{},session);dialog(True,'beforeunload');wait('window.__oldDocument !== true','new document');wait("document.querySelector('[data-k=c0]') !== null",'reloaded UI')
  wait("document.querySelector('[data-k=c0]') !== null",'initial')
+ if os.environ.get('HYOKEISAN_TEST_WORKBOOK') == '1':
+  evaluate("document.querySelector('[data-k=workbook-upgrade]').click()")
+  wait("document.getElementById('backup-dialog').open",'workbook upgrade preview')
+  evaluate("document.getElementById('backup-confirm').click()")
+  wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.startsWith('HU1|') && document.getElementById('status').textContent==='バックアップから復元しました。'",'workbook upgraded')
 
  # A failed journal read must freeze editing until a successful retry; it must
  # neither overwrite a retained record nor discard it without inspection.
