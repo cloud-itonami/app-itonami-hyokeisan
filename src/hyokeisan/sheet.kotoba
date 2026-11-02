@@ -1,0 +1,156 @@
+(ns hyokeisan.sheet (:export [main]))
+;; Bounded local workbook candidate: 4x4 cells, text, signed integers,
+;; =A1 references, =A1+B1 addition and =SUM(A1:B2). Unrecognized or cyclic
+;; formulas produce an error; no host operation or external format is implied.
+(defn dget [d :document k :keyword] :document
+  (option-value-of [:option :document] (document-get d k) (document-null)))
+(defn dstr [d :document] :string
+  (option-value-of [:option :string] (document-string-value d) ""))
+(defn dat [v :document i :i64] :document
+  (option-value-of [:option :document] (document-vector-at v i) (document-null)))
+(defn init [] :document
+  (document-vector (document-string "") (document-string "") (document-string "") (document-string "")
+                   (document-string "") (document-string "") (document-string "") (document-string "")
+                   (document-string "") (document-string "") (document-string "") (document-string "")
+                   (document-string "") (document-string "") (document-string "") (document-string "")))
+(defn cell-text [s :document i :i64] :string (dstr (dat s i)))
+(defn index-key [i :i64] :string (string-concat "c" (string-from-i64 i)))
+(defn key-index [key :string i :i64] :i64
+  (if (= i 16) -1 (if (string=? key (index-key i)) i (key-index key (+ i 1)))))
+(defn step [s :document target :string kind :string value :string] :document
+  (let [i (key-index target 0)]
+    (if (and (string=? kind "input") (>= i 0) (<= (string-byte-length value) 128))
+      (document-vector-assoc s i (document-string value)) s)))
+(defn ref-index [s :string] :i64
+  (if (not= (string-byte-length s) 2) -1
+    (let [c (string-code-point-at s 0) r (string-code-point-at s 1)]
+      (if (and (>= c 65) (<= c 68) (>= r 49) (<= r 52)) (+ (* (- r 49) 4) (- c 65)) -1))))
+(defn parse-digits [s :string i :i64 n :i64 v :i64] [:option :i64]
+  (if (= i n) (option-some-of [:option :i64] v)
+    (let [c (string-code-point-at s i)]
+      (if (or (< c 48) (> c 57)) (option-none-of [:option :i64])
+        (parse-digits s (+ i 1) n (+ (* v 10) (- c 48)))))))
+(defn parse-number [s :string] [:option :i64]
+  (let [n (string-byte-length s)]
+    (if (= n 0) (option-some-of [:option :i64] 0)
+      (let [neg (= (string-code-point-at s 0) 45) start (if neg 1 0)]
+        (if (or (= start n) (> (- n start) 6)) (option-none-of [:option :i64])
+          (let [v (parse-digits s start n 0)]
+            (if (option-some?-of [:option :i64] v)
+              (option-some-of [:option :i64] (* (if neg -1 1) (option-value-of [:option :i64] v 0)))
+              (option-none-of [:option :i64]))))))))
+(defn eval-token [s :document token :string seen :i64] [:option :i64]
+  (if (= (string-byte-length token) 0) (option-none-of [:option :i64])
+    (let [i (ref-index token)]
+      (if (>= i 0) (eval-cell s i seen) (parse-number token)))))
+(defn sum-range [s :document r :i64 c :i64 r0 :i64 c0 :i64 r1 :i64 c1 :i64 seen :i64 total :i64] [:option :i64]
+  (if (> r r1) (option-some-of [:option :i64] total)
+    (if (> c c1) (sum-range s (+ r 1) c0 r0 c0 r1 c1 seen total)
+      (let [v (eval-cell s (+ (* r 4) c) seen)]
+        (if (not (option-some?-of [:option :i64] v)) (option-none-of [:option :i64])
+          (let [next (+ total (option-value-of [:option :i64] v 0))]
+            (if (or (< next -1000000000) (> next 1000000000)) (option-none-of [:option :i64])
+              (sum-range s r (+ c 1) r0 c0 r1 c1 seen next))))))))
+(defn eval-form [s :document formula :string seen :i64] [:option :i64]
+  (let [n (string-byte-length formula)]
+    (if (and (= n 11) (string=? (string-substring formula 0 5) "=SUM(")
+             (string=? (string-substring formula 7 8) ":") (string=? (string-substring formula 10 11) ")"))
+      (let [a (ref-index (string-substring formula 5 7)) b (ref-index (string-substring formula 8 10))]
+        (if (or (< a 0) (< b 0) (> (quot a 4) (quot b 4)) (> (rem a 4) (rem b 4)))
+          (option-none-of [:option :i64])
+          (sum-range s (quot a 4) (rem a 4) (quot a 4) (rem a 4) (quot b 4) (rem b 4) seen 0)))
+      (let [expr (string-substring formula 1 n) plus (string-index-of expr "+")]
+        (if (< plus 0) (eval-token s expr seen)
+          (if (or (= plus 0) (= plus (- (string-byte-length expr) 1))) (option-none-of [:option :i64])
+            (let [a (eval-token s (string-substring expr 0 plus) seen)
+                  b (eval-token s (string-substring expr (+ plus 1) (string-byte-length expr)) seen)
+                  total (+ (option-value-of [:option :i64] a 0) (option-value-of [:option :i64] b 0))]
+              (if (and (option-some?-of [:option :i64] a) (option-some?-of [:option :i64] b)
+                       (>= total -1000000000) (<= total 1000000000))
+                (option-some-of [:option :i64] total) (option-none-of [:option :i64])))))))))
+(defn eval-cell [s :document i :i64 seen :i64] [:option :i64]
+  (let [flag (i64-shift-left 1 i) text (cell-text s i) n (string-byte-length text)]
+    (if (not= (bit-and seen flag) 0) (option-none-of [:option :i64])
+      (if (and (> n 0) (= (string-code-point-at text 0) 61))
+        (eval-form s text (bit-or seen flag)) (parse-number text)))))
+(defn shown [s :document i :i64] :string
+  (let [text (cell-text s i) n (string-byte-length text)]
+    (if (and (> n 0) (= (string-code-point-at text 0) 61))
+      (let [v (eval-cell s i 0)] (if (option-some?-of [:option :i64] v) (string-from-i64 (option-value-of [:option :i64] v 0)) "#ERROR"))
+      text)))
+(defn el [tag :string attrs :document children :document] :document
+  (document-map :tag (document-string tag) :attrs attrs :children children))
+(defn leaf [tag :string attrs :document text :string] :document
+  (document-map :tag (document-string tag) :attrs attrs :text (document-string text)))
+(defn name-cell [i :i64] :string
+  (string-concat (if (= (rem i 4) 0) "A" (if (= (rem i 4) 1) "B" (if (= (rem i 4) 2) "C" "D"))) (string-from-i64 (+ 1 (quot i 4)))))
+(defn view-cells [s :document i :i64 acc :document] :document
+  (if (= i 16) acc
+    (view-cells s (+ i 1)
+      (document-vector-conj acc
+        (el "div" (document-map :class (document-string "cell"))
+          (document-vector (leaf "span" (document-map :class (document-string "label")) (name-cell i))
+            (leaf "input" (document-map :data-k (document-string (index-key i)) :type (document-string "text")
+                                       :value (document-string (cell-text s i))) "")
+            (leaf "span" (document-map :class (document-string "value")) (shown s i))))))))
+(defn view [s :document] :document
+  (el "div" (document-map :class (document-string "sheet"))
+    (document-vector (leaf "h1" (document-map) "itonami Hyokeisan")
+                     (el "main" (document-map :class (document-string "grid")) (view-cells s 0 (document-vector))))))
+(defn test-sheet [] :i64
+  (let [s (step (step (step (step (step (init) "c0" "input" "3") "c1" "input" "4") "c4" "input" "=A1+B1") "c5" "input" "=SUM(A1:B2)") "c2" "input" "=SUM(A1:B1)")
+        cycle (step s "c0" "input" "=A1")
+        bytes (option-value-of [:option :string] (snap-encode s) "")
+        restored (snap-decode bytes)]
+    (if (and (string=? (shown s 4) "7") (string=? (shown s 2) "7") (string=? (shown s 5) "#ERROR")
+             (string=? (shown cycle 0) "#ERROR") (string=? (shown s 0) "3")
+             (option-some?-of [:option :document] restored)
+             (document-equal? s (option-value-of [:option :document] restored (document-null)))
+             (not (option-some?-of [:option :document] (snap-decode (string-concat bytes "extra"))))) 0 1)))
+;; Versioned candidate state: exactly sixteen bounded, byte-framed strings.
+(defn snap-frame [s :string] :string
+  (string-concat (string-from-i64 (string-byte-length s)) (string-concat ":" s)))
+(defn snap-end [s :string i :i64 end :i64] :bool
+  (if (= i end) true
+    (if (> i end) false
+      (let [c (string-code-point-at s i)
+            w (cond (< c 128) 1 (< c 2048) 2 (< c 65536) 3 :else 4)]
+        (snap-end s (+ i w) end)))))
+
+(defn snap-header [s :string i :i64 n :i64 value :i64 digits :i64 zero :bool] :vector-i64
+  (if (>= i n) [-1 -1 -1]
+    (let [c (string-code-point-at s i)]
+      (cond
+        (= c 58) (let [begin (+ i 1) end (+ begin value)]
+          (if (and (> digits 0) (<= value 1024) (<= end n) (snap-end s begin end))
+            [begin end end] [-1 -1 -1]))
+        (or (< c 48) (> c 57) (>= digits 4) (and zero (> digits 0))) [-1 -1 -1]
+        :else (snap-header s (+ i 1) n (+ (* value 10) (- c 48)) (+ digits 1) (and (= digits 0) (= c 48)))))))
+
+(defn snap-read [s :string i :i64] :vector-i64
+  (snap-header s i (string-byte-length s) 0 0 false))
+
+(defn snap-text [s :string r :vector-i64] :string
+  (string-substring s (vector-at r 0) (vector-at r 1)))
+
+
+(defn snap-encode-cells [s :document i :i64 acc :string] [:option :string]
+  (if (= i 16) (option-some-of [:option :string] acc)
+    (let [d (dat s i)]
+      (if (and (string? d) (<= (string-byte-length (dstr d)) 128))
+        (snap-encode-cells s (+ i 1) (string-concat acc (snap-frame (dstr d))))
+        (option-none-of [:option :string])))))
+(defn snap-encode [s :document] [:option :string]
+  (if (and (vector? s) (= (document-count s) 16)) (snap-encode-cells s 0 "HS1|")
+    (option-none-of [:option :string])))
+(defn snap-decode-cells [s :string pos :i64 i :i64 acc :document] [:option :document]
+  (if (= i 16)
+    (if (= pos (string-byte-length s)) (option-some-of [:option :document] acc) (option-none-of [:option :document]))
+    (let [r (snap-read s pos)]
+      (if (or (< (vector-at r 0) 0) (> (- (vector-at r 1) (vector-at r 0)) 128))
+        (option-none-of [:option :document])
+        (snap-decode-cells s (vector-at r 2) (+ i 1) (document-vector-conj acc (document-string (snap-text s r))))))))
+(defn snap-decode [s :string] [:option :document]
+  (if (or (< (string-byte-length s) 4) (not (string=? (string-substring s 0 4) "HS1|")))
+    (option-none-of [:option :document]) (snap-decode-cells s 4 0 (document-vector))))
+(defn main [] :i64 (test-sheet))

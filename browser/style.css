@@ -1,0 +1,9 @@
+:root { font-family: system-ui, sans-serif; color: #20242a; background: #f2f4f7; }
+body { margin: 0; }
+#status { margin: 0; padding: .5rem 1rem; background: #fff; }
+.sheet { max-width: 70rem; margin: auto; padding: 1rem; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(9rem, 1fr)); gap: .5rem; overflow: auto; }
+.cell { display: flex; flex-direction: column; gap: .25rem; background: #fff; padding: .5rem; }
+.cell input { min-width: 0; padding: .4rem; }
+.label { font-weight: bold; }
+.value { color: #3f536c; min-height: 1.4em; }
