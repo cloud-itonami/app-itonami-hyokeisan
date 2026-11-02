@@ -76,6 +76,12 @@ try:
     saved = evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')")
     if '77' in saved: raise ValueError('stale tab clobbered state')
     pipe.call('Target.closeTarget', {'targetId': second})
+    evaluate("window.savedWorker=window.Worker;window.Worker=class extends window.savedWorker {postMessage(msg){if(msg.args[0]==='view'){this.terminate();queueMicrotask(()=>this.onerror(new Event('error')))}else super.postMessage(msg)}}")
+    input_('c0', '中断')
+    wait("document.getElementById('status').textContent.includes('保存できませんでした')", 'worker interruption')
+    if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('interrupted render clobbered storage')
+    evaluate("window.Worker=window.savedWorker")
+    pipe.call('Page.reload', {}, session); shown('c0', '8'); shown('c4', '12')
     evaluate("Storage.prototype.setItem = function(){throw new Error('quota')}")
     input_('c0', '9')
     wait("document.getElementById('status').textContent.includes('保存できませんでした')", 'storage failure')
@@ -98,7 +104,7 @@ try:
         raise ValueError('tampered candidate ran or wrote state')
     requests = [e['params']['request']['url'] for e in pipe.events if e.get('method') == 'Network.requestWillBeSent']
     if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
-    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['grid','addition','sum','recalculate','cycle','save-reload','oversized-refusal','concurrent-tab-refusal','storage-failure','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
+    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['grid','addition','sum','recalculate','cycle','save-reload','oversized-refusal','concurrent-tab-refusal','worker-interruption','storage-failure','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
     print('PASS_HYOKEISAN_BROWSER_UI grid, calculation, save and refusal')
 finally:
     pipe.close(); server.shutdown(); server.server_close()
