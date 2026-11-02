@@ -208,12 +208,15 @@ try:
     input_('c0','8'); wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False), 'restore timeout fixture')
     background=pipe.call('Target.createTarget', {'url':'about:blank'})['targetId']
     wait("document.visibilityState === 'hidden'", 'hidden tab')
-    evaluate("window.savedTimer=window.setTimeout;window.savedTimeoutWorker=window.Worker;window.Worker=class extends window.savedTimeoutWorker {postMessage(msg){if(msg.args[0]!=='step')super.postMessage(msg)}};window.setTimeout=(f,n)=>window.savedTimer(f,n===30000?1:n)")
-    input_('c0','背景入力'); wait("document.getElementById('status').textContent.includes('時間内に完了しませんでした')", 'hidden timeout')
+    evaluate("window.savedTimeoutWorker=window.Worker;window.Worker=class extends window.savedTimeoutWorker {postMessage(msg){if(msg.args[0]!=='step')super.postMessage(msg)}}")
+    started = time.monotonic()
+    input_('c0','背景入力'); wait("document.getElementById('status').textContent.includes('時間内に完了しませんでした')", 'hidden timeout', seconds=90)
+    elapsed = time.monotonic() - started
+    if elapsed < 29 or evaluate("document.visibilityState") != 'hidden': raise ValueError('hidden timeout did not use the real timer')
     pipe.call('Page.bringToFront', {}, session); wait("document.visibilityState === 'visible'", 'return to tab')
     if evaluate("document.querySelector('[data-k=c0]')?.value") != '背景入力' or evaluate("document.getElementById('retry-save').hidden") or evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('hidden timeout discarded input')
     pipe.call('Target.closeTarget', {'targetId':background})
-    evaluate("window.setTimeout=window.savedTimer;window.Worker=window.savedTimeoutWorker;document.getElementById('retry-save').click()")
+    evaluate("window.Worker=window.savedTimeoutWorker;document.getElementById('retry-save').click()")
     wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('背景入力') && document.getElementById('retry-save').hidden", 'hidden retry')
     input_('c0','8'); wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False), 'restore hidden fixture')
     reload_page(); shown('c0', '8'); shown('c4', '12')
