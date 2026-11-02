@@ -8,11 +8,14 @@ import functools
 import http.server
 import importlib.util
 import json
+import os
+import re
 import shutil
 import sys
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 if len(sys.argv) != 5: raise SystemExit(__doc__)
 amu, build, out, chrome = [Path(x).resolve() for x in sys.argv[1:]]
 out.mkdir(parents=True, exist_ok=False)
@@ -35,7 +38,16 @@ def make_state(first, other="other-sheet😀", selected="s1", top="1", left="1",
     return 'HU1|' + frame(book) + frame(selected) + frame(top) + frame(left)
 original, expected = make_state('v1'), make_state('edited')
 key = 'itonami.hyokeisan.candidate.hs1'
-url = f'http://127.0.0.1:{server.server_port}/site/index.html'
+base = os.environ.get('HYOKEISAN_TEST_CID_BASE')
+if base:
+    parsed = urlsplit(base)
+    if (parsed.scheme != 'http' or parsed.hostname != '127.0.0.1' or parsed.port is None
+            or parsed.username is not None or parsed.password is not None
+            or parsed.query or parsed.fragment or not re.fullmatch(r'/ipfs/b[a-z2-7]+/', parsed.path)):
+        raise ValueError('CID test base must be a loopback HTTP CID directory')
+else:
+    base = f'http://127.0.0.1:{server.server_port}/site/'
+url = base + 'index.html'
 try:
     target = pipe.call('Target.createTarget', {'url': 'about:blank'})['targetId']
     session = pipe.call('Target.attachToTarget', {'targetId': target, 'flatten': True})['sessionId']
@@ -98,7 +110,7 @@ try:
     wait("document.querySelector('[data-k=c1]')?.value==='=SUM(A1:A1024)' && document.querySelector('[data-k=c1]')?.parentElement.querySelector('.value')?.textContent==='1024'",'1024-cell SUM')
     if ev('localStorage.getItem('+json.dumps(key)+')') != sum_state: raise ValueError('SUM render changed workbook')
     requests=[e['params']['request']['url'] for e in pipe.events if e.get('method')=='Network.requestWillBeSent']
-    if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
+    if not requests or any(not u.startswith(base) for u in requests): raise ValueError('unexpected network request')
     (out/'result.json').write_text(json.dumps({'status':'PASS','cells':1024,'otherSheetCell':'cross-page formula at AA50','firstSheet':'1024 cells unchanged','sum':'1024 numeric cells','provenance':'unchanged','snapshotBytes':len(expected.encode()),'scope':'synthetic Chrome loopback'},indent=2)+'\n')
     print('PASS_WORKBOOK_LARGE 1024 cells, second sheet, edit, save and reload')
 finally:
