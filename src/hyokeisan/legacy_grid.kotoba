@@ -1,5 +1,5 @@
 (ns hyokeisan.legacy-grid
-  (:export [legacy-grid-cells])
+  (:export [legacy-grid-cells legacy-grid-find])
   (:require [hyokeisan.json-string :as js]
             [hyokeisan.workbook :as workbook]))
 
@@ -60,4 +60,59 @@
   (let [n (string-byte-length s) p (lg-space s 0 n)]
     (if (or (> n 35000) (>= p n)) (option-none-of [:option :string])
       (if (= (string-code-point-at s p) 91) (lg-rows s (+ p 1) n 1 "" true)
+        (option-none-of [:option :string])))))
+
+;; Locate the complete matrix token without materializing a document vector.
+;; Full syntax is subsequently checked by legacy-grid-cells, not this scan.
+(defn lg-matrix-end [s :string start :i64 n :i64] :i64
+  (loop [p start depth 0]
+    (if (>= p n) -1
+      (let [c (string-code-point-at s p)]
+        (cond (= c 34) (let [end (lg-string-end s p n)]
+                         (if (< end 0) -1 (recur end depth)))
+              (= c 91) (if (>= depth 2) -1 (recur (+ p 1) (+ depth 1)))
+              (= c 93) (if (<= depth 0) -1
+                         (if (= depth 1) (+ p 1) (recur (+ p 1) (- depth 1))))
+              :else (recur (+ p (lg-width c)) depth))))))
+(defn lg-seen? [seen :string name :string] :bool
+  (loop [p 0]
+    (if (= p (string-byte-length seen)) false
+      (let [f (workbook/wf-read seen p)]
+        (if (< (workbook/wf-start f) 0) true
+          (if (string=? (workbook/wf-text seen f) name) true
+            (recur (workbook/wf-end f))))))))
+(defn lg-object [s :string pos :i64 n :i64 wanted :string seen :string
+                 found :bool result :string first :bool] [:option :string]
+  (let [p (lg-space s pos n)]
+    (if (>= p n) (option-none-of [:option :string])
+      (let [c (string-code-point-at s p)]
+        (cond (= c 125) (if (and first found (= (lg-space s (+ p 1) n) n))
+                          (option-some-of [:option :string] result) (option-none-of [:option :string]))
+              (not= c 34) (option-none-of [:option :string])
+              :else (let [end (lg-string-end s p n)]
+                (if (< end 0) (option-none-of [:option :string])
+                  (let [name (js/json-unquote (string-substring s p end))
+                        colon (lg-space s end n)]
+                    (if (or (not (option-some?-of [:option :string] name)) (>= colon n)) (option-none-of [:option :string])
+                      (let [key (option-value-of [:option :string] name "")]
+                        (if (or (> (string-byte-length key) 1024) (lg-seen? seen key)
+                                (not (= (string-code-point-at s colon) 58))) (option-none-of [:option :string])
+                          (let [begin (lg-space s (+ colon 1) n)]
+                            (if (or (>= begin n) (not (= (string-code-point-at s begin) 91))) (option-none-of [:option :string])
+                              (let [stop (lg-matrix-end s begin n)]
+                                (if (< stop 0) (option-none-of [:option :string])
+                                  (let [cells (legacy-grid-cells (string-substring s begin stop))
+                                        q (lg-space s stop n)]
+                                    (if (or (not (option-some?-of [:option :string] cells)) (>= q n)) (option-none-of [:option :string])
+                                      (let [hit (string=? key wanted) more (string-code-point-at s q)
+                                            value (if hit (option-value-of [:option :string] cells "") result)]
+                                        (cond (= more 125) (if (and (or found hit) (= (lg-space s (+ q 1) n) n))
+                                                             (option-some-of [:option :string] value) (option-none-of [:option :string]))
+                                              (= more 44) (lg-object s (+ q 1) n wanted
+                                                            (string-concat seen (workbook/wf-frame key)) (or found hit) value false)
+                                              :else (option-none-of [:option :string]))))))))))))))))))))
+(defn legacy-grid-find [s :string wanted :string] [:option :string]
+  (let [n (string-byte-length s) p (lg-space s 0 n)]
+    (if (or (> n 35000) (>= p n)) (option-none-of [:option :string])
+      (if (= (string-code-point-at s p) 123) (lg-object s (+ p 1) n wanted "" false "" true)
         (option-none-of [:option :string])))))

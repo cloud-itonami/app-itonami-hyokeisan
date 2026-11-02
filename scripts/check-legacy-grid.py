@@ -31,6 +31,11 @@ raw = json.dumps(rows, ensure_ascii=False, separators=(',', ':'))
 escaped = json.dumps([['雪😀', 'line\nnext', '"\\/']], ensure_ascii=True, separators=(',', ':'))
 escaped_expected = ''.join(frame('1') + frame(str(c + 1)) + frame(v)
                            for c, v in enumerate(['雪😀', 'line\nnext', '"\\/']))
+grid_object = json.dumps({**{'Sheet' + str(i): [[str(i)]] for i in range(40)},
+                          '予算!': [['雪', '😀']]}, ensure_ascii=False, separators=(',', ':'))
+object_expected = frame('1') + frame('1') + frame('雪') + frame('1') + frame('2') + frame('😀')
+bad_objects = ['{"A":[["a"]],"\\u0041":[["b"]]}', '{"A":[["a"]],}',
+               '{"A":[["a"]],"B":[[null]]}', '{"A":[["a"]]} trailing', '{"A":null}']
 expected = ''.join(frame(str(r + 1)) + frame(str(c + 1)) + frame(v)
                    for r, row in enumerate(rows) for c, v in enumerate(row) if v)
 literal = lambda x: json.dumps(x, ensure_ascii=False)
@@ -39,6 +44,9 @@ bad = ['[[],]', '[["x",]]', '[["x"]] trailing', '[[null]]', '[["\\q"]]',
 fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + ')] (if (and ' + \
     '(option-some?-of [:option :string] v) (string=? (option-value-of [:option :string] v "") ' + literal(expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-cells ' + literal(escaped) + ') "bad") ' + literal(escaped_expected) + ') ' + \
+    '(string=? (option-value-of [:option :string] (legacy-grid-find ' + literal(grid_object) + ' "予算!") "bad") ' + literal(object_expected) + ') ' + \
+    '(not (option-some?-of [:option :string] (legacy-grid-find ' + literal(grid_object) + ' "missing"))) ' + \
+    ' '.join('(not (option-some?-of [:option :string] (legacy-grid-find ' + literal(item) + ' "A")))' for item in bad_objects) + ' ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-grid-cells ' + literal(item) + ')))' for item in bad) + ') 0 1)))\n'
 anchor = '(string-concat acc (wf-cell row col value))'
 if source.count(anchor) != 1: raise ValueError('coordinate mutation anchor changed')
