@@ -1,0 +1,63 @@
+(ns hyokeisan.legacy-grid
+  (:export [legacy-grid-cells])
+  (:require [hyokeisan.json-string :as js]
+            [hyokeisan.workbook :as workbook]))
+
+;; Strict parser for one raw legacy grid matrix. Return row-major sparse HW3
+;; cell frames only; caller must retain the original and validate the workbook.
+;; This is a parser building block, not an authenticated export or migration.
+(defn lg-width [c :i64] :i64
+  (cond (< c 128) 1 (< c 2048) 2 (< c 65536) 3 :else 4))
+(defn lg-space [s :string i :i64 n :i64] :i64
+  (loop [p i]
+    (if (>= p n) p
+      (let [c (string-code-point-at s p)]
+        (if (or (= c 32) (= c 9) (= c 10) (= c 13)) (recur (+ p 1)) p)))))
+(defn lg-string-end [s :string i :i64 n :i64] :i64
+  (loop [p (+ i 1)]
+    (if (or (>= p n) (> (- p i) 8192)) -1
+      (let [c (string-code-point-at s p)]
+        (cond (= c 34) (+ p 1)
+              (< c 32) -1
+              (= c 92) (if (>= (+ p 1) n) -1
+                           (if (>= (string-code-point-at s (+ p 1)) 128) -1 (recur (+ p 2))))
+              :else (recur (+ p (lg-width c))))))))
+(defn lg-rows [s :string pos :i64 n :i64 row :i64 acc :string first :bool] [:option :string]
+  (let [p (lg-space s pos n)]
+    (if (>= p n) (option-none-of [:option :string])
+      (let [c (string-code-point-at s p)]
+        (cond (= c 93) (if (and first (= (lg-space s (+ p 1) n) n))
+                         (option-some-of [:option :string] acc) (option-none-of [:option :string]))
+              (or (not= c 91) (> row 1048576)) (option-none-of [:option :string])
+              :else (lg-cells s (+ p 1) n row 1 acc true))))))
+(defn lg-after-row [s :string pos :i64 n :i64 row :i64 acc :string] [:option :string]
+  (let [p (lg-space s pos n)]
+    (if (>= p n) (option-none-of [:option :string])
+      (let [c (string-code-point-at s p)]
+        (cond (= c 93) (if (= (lg-space s (+ p 1) n) n) (option-some-of [:option :string] acc) (option-none-of [:option :string]))
+              (= c 44) (lg-rows s (+ p 1) n (+ row 1) acc false)
+              :else (option-none-of [:option :string]))))))
+(defn lg-cells [s :string pos :i64 n :i64 row :i64 col :i64 acc :string first :bool] [:option :string]
+  (let [p (lg-space s pos n)]
+    (if (>= p n) (option-none-of [:option :string])
+      (let [c (string-code-point-at s p)]
+        (cond (= c 93) (if first (lg-after-row s (+ p 1) n row acc) (option-none-of [:option :string]))
+              (or (not= c 34) (> col 16384)) (option-none-of [:option :string])
+              :else (let [end (lg-string-end s p n)]
+                (if (< end 0) (option-none-of [:option :string])
+                  (let [v (js/json-unquote (string-substring s p end))]
+                    (if (not (option-some?-of [:option :string] v)) (option-none-of [:option :string])
+                      (let [value (option-value-of [:option :string] v "")
+                            next (if (= (string-byte-length value) 0) acc
+                                     (string-concat acc (workbook/wf-cell row col value)))
+                            q (lg-space s end n)]
+                        (if (>= q n) (option-none-of [:option :string])
+                          (let [d (string-code-point-at s q)]
+                            (cond (= d 93) (lg-after-row s (+ q 1) n row next)
+                                  (= d 44) (lg-cells s (+ q 1) n row (+ col 1) next false)
+                                  :else (option-none-of [:option :string]))))))))))))))
+(defn legacy-grid-cells [s :string] [:option :string]
+  (let [n (string-byte-length s) p (lg-space s 0 n)]
+    (if (or (> n 35000) (>= p n)) (option-none-of [:option :string])
+      (if (= (string-code-point-at s p) 91) (lg-rows s (+ p 1) n 1 "" true)
+        (option-none-of [:option :string])))))
