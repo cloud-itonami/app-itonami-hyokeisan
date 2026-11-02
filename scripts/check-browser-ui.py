@@ -38,6 +38,10 @@ try:
             if evaluate(expr): return
             time.sleep(.2)
         raise TimeoutError(label + ': ' + str(evaluate('document.body.innerText')))
+    def reload_page():
+        evaluate("window.__reloadMarker = true")
+        pipe.call('Page.reload', {}, session)
+        wait("window.__reloadMarker !== true", 'new document after reload')
     def input_(cell, text):
         evaluate("(()=>{let e=document.querySelector('[data-k="+cell+"]');e.value="+json.dumps(text,ensure_ascii=False)+";e.dispatchEvent(new Event('input',{bubbles:true}));})()")
     def shown(cell, value):
@@ -75,7 +79,7 @@ try:
     if evaluate("document.querySelector('[data-k=c0]').value.length") != 129 or evaluate("document.getElementById('retry-save').hidden"): raise ValueError('oversized input discarded')
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != saved: raise ValueError('oversized input clobbered storage')
     input_('c0', '6'); wait("document.getElementById('retry-save').hidden && localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False) + " && document.getElementById('status').textContent === '保存しました'", 'correct oversized input')
-    pipe.call('Page.reload', {}, session); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR')
+    reload_page(); shown('c4', '10'); shown('c2', '10'); shown('c3', '#ERROR')
     # A downloaded HS1 can be explicitly reviewed and restored; invalid input
     # and storage failure must never replace the current document.
     download = out / 'downloads'
@@ -203,7 +207,7 @@ try:
     evaluate("window.setTimeout=window.savedTimer;document.getElementById('retry-save').click()")
     wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('背景入力') && document.getElementById('retry-save').hidden", 'hidden retry')
     input_('c0','8'); wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False), 'restore hidden fixture')
-    pipe.call('Page.reload', {}, session); shown('c0', '8'); shown('c4', '12')
+    reload_page(); shown('c0', '8'); shown('c4', '12')
     evaluate("window.savedWorker=window.Worker;window.Worker=class extends window.savedWorker {postMessage(msg){if(msg.args[0]==='view'){this.terminate();queueMicrotask(()=>this.onerror(new Event('error')))}else super.postMessage(msg)}}")
     input_('c0', '中断')
     wait("document.getElementById('status').textContent.includes('保存できませんでした')", 'worker interruption')
@@ -212,7 +216,7 @@ try:
     evaluate("window.Worker=window.savedWorker;document.getElementById('retry-save').click()")
     wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('中断') && document.getElementById('retry-save').hidden", 'interruption retry')
     input_('c0','8'); wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False), 'restore interruption fixture')
-    pipe.call('Page.reload', {}, session); shown('c0', '8'); shown('c4', '12')
+    reload_page(); shown('c0', '8'); shown('c4', '12')
     evaluate("window.quotaSetter=Storage.prototype.setItem;Storage.prototype.setItem = function(){throw new Error('quota')}")
     input_('c0', '9')
     wait("document.getElementById('status').textContent.includes('保存できませんでした')", 'storage failure')
@@ -228,9 +232,9 @@ try:
     evaluate("Storage.prototype.setItem=window.partialSetter;document.getElementById('retry-save').click()")
     wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('未保存表') && localStorage.getItem('itonami.hyokeisan.candidate.hs1')?.includes('追加セル') && document.getElementById('retry-save').hidden", 'multiple edits retry')
     input_('c0','8');input_('c1',old_c1);wait("localStorage.getItem('itonami.hyokeisan.candidate.hs1') === " + json.dumps(saved,ensure_ascii=False), 'restore multi fixture')
-    pipe.call('Page.reload', {}, session); shown('c0', '8')
+    reload_page(); shown('c0', '8')
     evaluate("localStorage.setItem('itonami.hyokeisan.candidate.hs1','HS1|bad')")
-    pipe.call('Page.reload', {}, session)
+    reload_page()
     wait("document.getElementById('status').textContent.includes('開けません')", 'corruption refusal')
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != 'HS1|bad': raise ValueError('corrupt data overwritten')
     evaluate("localStorage.removeItem('itonami.hyokeisan.candidate.hs1')")
