@@ -1,0 +1,185 @@
+(ns hyokeisan.workbook (:export [main]))
+;; A canonical, sparse, byte-framed workbook. Strings contain the full source
+;; provenance and sparse cell records without the document vector's 32-item
+;; limit. This is an unconnected candidate, not an importer or release schema.
+(defn wf-frame [s :string] :string
+  (string-concat (string-from-i64 (string-byte-length s)) (string-concat ":" s)))
+(defn wf-boundary? [s :string i :i64 end :i64] :bool
+  (loop [at i]
+    (if (= at end) true
+      (if (> at end) false
+        (let [c (string-code-point-at s at)
+              w (cond (< c 128) 1 (< c 2048) 2 (< c 65536) 3 :else 4)]
+          (recur (+ at w)))))))
+;; Frame positions are packed into one i64: 21 bits each. This avoids one
+;; vector-table allocation for every field scanned during a bulk import.
+(defn wf-start [frame :i64] :i64 (if (< frame 0) -1 (rem frame 2097152)))
+(defn wf-end [frame :i64] :i64 (if (< frame 0) -1 (quot frame 2097152)))
+(defn wf-header [s :string i :i64 n :i64 value :i64 digits :i64 zero :bool] :i64
+  (if (>= i n) -1
+    (let [c (string-code-point-at s i)]
+      (cond (= c 58) (let [start (+ i 1) end (+ start value)]
+                       (if (and (> digits 0) (<= value 1048576) (<= end n) (wf-boundary? s start end))
+                         (+ start (* end 2097152)) -1))
+            (or (< c 48) (> c 57) (>= digits 7) (and zero (> digits 0))) -1
+            :else (wf-header s (+ i 1) n (+ (* value 10) (- c 48)) (+ digits 1) (and (= digits 0) (= c 48)))))))
+(defn wf-read [s :string pos :i64] :i64
+  (wf-header s pos (string-byte-length s) 0 0 false))
+(defn wf-text [s :string frame :i64] :string
+  (string-substring s (wf-start frame) (wf-end frame)))
+;; Decimal parsing walks the original UTF-8 bytes without allocating a
+;; substring per coordinate. A leading zero is noncanonical except for 0.
+(defn wf-number-frame [s :string frame :i64 max :i64] :i64
+  (let [start (wf-start frame) end (wf-end frame) n (- end start)]
+    (if (or (< start 0) (<= n 0) (> n 7)) -1
+      (let [first (string-code-point-at s start)]
+        (if (or (< first 48) (> first 57) (and (= first 48) (> n 1))) -1
+          (loop [i start value 0]
+            (if (= i end) (if (<= value max) value -1)
+              (let [c (string-code-point-at s i)]
+                (if (or (< c 48) (> c 57)) -1 (recur (+ i 1) (+ (* value 10) (- c 48))))))))))))
+(defn wf-before? [r :i64 c :i64 r2 :i64 c2 :i64] :bool
+  (or (< r r2) (and (= r r2) (< c c2))))
+(defn wf-valid-cells [s :string pos :i64 count :i64 last-r :i64 last-c :i64] :bool
+  (loop [pos pos count count last-r last-r last-c last-c]
+   (if (= pos (string-byte-length s)) true
+    (if (>= count 65536) false
+      (let [rf (wf-read s pos)]
+        (if (< (wf-start rf) 0) false
+          (let [cf (wf-read s (wf-end rf))]
+            (if (< (wf-start cf) 0) false
+              (let [vf (wf-read s (wf-end cf))]
+                (if (< (wf-start vf) 0) false
+                  (let [r (wf-number-frame s rf 1048576) c (wf-number-frame s cf 16384)]
+                    (if (or (< r 1) (< c 1) (> (- (wf-end vf) (wf-start vf)) 65536)
+                            (and (> count 0) (not (wf-before? last-r last-c r c)))) false
+                      (recur (wf-end vf) (+ count 1) r c)))))))))))))
+(defn wf-sheet-valid? [s :string] :bool
+  (let [id (wf-read s 0)]
+    (if (< (wf-start id) 0) false
+      (let [name (wf-read s (wf-end id))]
+        (if (< (wf-start name) 0) false
+          (and (> (- (wf-end id) (wf-start id)) 0)
+               (<= (- (wf-end id) (wf-start id)) 1024)
+               (<= (- (wf-end name) (wf-start name)) 1024)
+               (wf-valid-cells s (wf-end name) 0 0 0)))))))
+(defn wf-prior-id? [s :string pos :i64 end :i64 id :string] :bool
+  (loop [pos pos]
+   (if (= pos end) false
+    (let [frame (wf-read s pos)]
+      (if (or (< (wf-start frame) 0) (> (wf-end frame) end)) true
+        (let [sheet (wf-text s frame) idf (wf-read sheet 0)]
+          (if (or (< (wf-start idf) 0) (string=? (wf-text sheet idf) id)) true
+            (recur (wf-end frame)))))))))
+(defn wf-valid-sheets [s :string start :i64 pos :i64 count :i64] :bool
+  (loop [pos pos count count]
+   (if (= pos (string-byte-length s)) true
+    (if (>= count 1024) false
+      (let [frame (wf-read s pos)]
+        (if (< (wf-start frame) 0) false
+          (let [sheet (wf-text s frame) idf (wf-read sheet 0)]
+            (if (or (< (wf-start idf) 0) (not (wf-sheet-valid? sheet))) false
+              (if (wf-prior-id? s start pos (wf-text sheet idf)) false
+                (recur (wf-end frame) (+ count 1)))))))))))
+(defn wf-body-valid? [s :string] :bool
+  (let [title (wf-read s 4)]
+    (if (< (wf-start title) 0) false
+      (let [original (wf-read s (wf-end title))]
+        (if (< (wf-start original) 0) false
+          (and (<= (- (wf-end title) (wf-start title)) 1024)
+               (<= (- (wf-end original) (wf-start original)) 524288)
+               (wf-valid-sheets s (wf-end original) (wf-end original) 0)))))))
+(defn wf-valid? [s :string] :bool
+  (let [n (string-byte-length s)]
+    (if (or (< n 4) (> n 1048576)) false
+      (if (not (= (string-code-point-at s 0) 72)) false
+        (if (not (= (string-code-point-at s 1) 87)) false
+          (if (not (= (string-code-point-at s 2) 51)) false
+            (if (not (= (string-code-point-at s 3) 124)) false (wf-body-valid? s))))))))
+(defn wf-new [title :string original :string] [:option :string]
+  (if (or (> (string-byte-length title) 1024) (> (string-byte-length original) 524288))
+    (option-none-of [:option :string])
+    (let [raw (string-concat "HW3|" (string-concat (wf-frame title) (wf-frame original)))]
+      (if (wf-valid? raw) (option-some-of [:option :string] raw) (option-none-of [:option :string])))))
+(defn wf-sheet-start [s :string] :i64
+  (let [title (wf-read s 4) original (wf-read s (wf-end title))]
+    (wf-end original)))
+(defn wf-add-sheet [raw :string id :string title :string] [:option :string]
+  (if (or (not (wf-valid? raw)) (= (string-byte-length id) 0)
+          (> (string-byte-length id) 1024) (> (string-byte-length title) 1024))
+    (option-none-of [:option :string])
+    (let [start (wf-sheet-start raw)
+          next (string-concat raw (wf-frame (string-concat (wf-frame id) (wf-frame title))))]
+      (if (and (not (wf-prior-id? raw start (string-byte-length raw) id)) (wf-valid? next))
+        (option-some-of [:option :string] next) (option-none-of [:option :string])))))
+(defn wf-cell [row :i64 col :i64 value :string] :string
+  (string-concat (wf-frame (string-from-i64 row)) (string-concat (wf-frame (string-from-i64 col)) (wf-frame value))))
+(defn wf-insert-cell [s :string pos :i64 row :i64 col :i64 value :string] :string
+  (loop [pos pos]
+   (if (= pos (string-byte-length s)) (string-concat s (wf-cell row col value))
+    (let [rf (wf-read s pos) cf (wf-read s (wf-end rf)) vf (wf-read s (wf-end cf))
+          r (wf-number-frame s rf 1048576) c (wf-number-frame s cf 16384)]
+      (if (or (and (= row r) (= col c)) (wf-before? row col r c))
+        (string-concat (string-substring s 0 pos)
+          (string-concat (wf-cell row col value)
+            (string-substring s (if (and (= row r) (= col c)) (wf-end vf) pos) (string-byte-length s))))
+        (recur (wf-end vf)))))))
+(defn wf-put-sheet [raw :string pos :i64 id :string row :i64 col :i64 value :string] [:option :string]
+  (loop [pos pos]
+   (if (= pos (string-byte-length raw)) (option-none-of [:option :string])
+    (let [f (wf-read raw pos) sheet (wf-text raw f) idf (wf-read sheet 0) namef (wf-read sheet (wf-end idf))]
+      (if (string=? (wf-text sheet idf) id)
+        (let [updated (wf-insert-cell sheet (wf-end namef) row col value)
+              next (string-concat (string-substring raw 0 pos)
+                     (string-concat (wf-frame updated) (string-substring raw (wf-end f) (string-byte-length raw))))]
+          (if (wf-valid? next) (option-some-of [:option :string] next) (option-none-of [:option :string])))
+        (recur (wf-end f)))))))
+(defn wf-put [raw :string id :string row :i64 col :i64 value :string] [:option :string]
+  (if (or (not (wf-valid? raw)) (< row 1) (> row 1048576) (< col 1) (> col 16384)
+          (> (string-byte-length value) 65536)) (option-none-of [:option :string])
+    (wf-put-sheet raw (wf-sheet-start raw) id row col value)))
+(defn wf-original [raw :string] [:option :string]
+  (if (not (wf-valid? raw)) (option-none-of [:option :string])
+    (let [title (wf-read raw 4) original (wf-read raw (wf-end title))]
+      (option-some-of [:option :string] (wf-text raw original)))))
+(defn wf-find-cell [sheet :string pos :i64 row :i64 col :i64] [:option :string]
+  (loop [pos pos]
+   (if (= pos (string-byte-length sheet)) (option-none-of [:option :string])
+    (let [rf (wf-read sheet pos) cf (wf-read sheet (wf-end rf)) vf (wf-read sheet (wf-end cf))
+          r (wf-number-frame sheet rf 1048576) c (wf-number-frame sheet cf 16384)]
+      (cond (and (= r row) (= c col)) (option-some-of [:option :string] (wf-text sheet vf))
+            (wf-before? row col r c) (option-none-of [:option :string])
+            :else (recur (wf-end vf)))))))
+(defn wf-find-sheet-cell [raw :string pos :i64 id :string row :i64 col :i64] [:option :string]
+  (loop [pos pos]
+   (if (= pos (string-byte-length raw)) (option-none-of [:option :string])
+    (let [sf (wf-read raw pos) sheet (wf-text raw sf) idf (wf-read sheet 0) namef (wf-read sheet (wf-end idf))]
+      (if (string=? (wf-text sheet idf) id) (wf-find-cell sheet (wf-end namef) row col)
+        (recur (wf-end sf)))))))
+(defn wf-get [raw :string id :string row :i64 col :i64] [:option :string]
+  (if (or (not (wf-valid? raw)) (< row 1) (> row 1048576) (< col 1) (> col 16384))
+    (option-none-of [:option :string]) (wf-find-sheet-cell raw (wf-sheet-start raw) id row col)))
+(defn main [] :i64
+  (let [a (wf-new "帳簿" "{\"unknown\":true}")
+        b (wf-add-sheet (option-value-of [:option :string] a "") "first" "Sheet1")
+        c (wf-add-sheet (option-value-of [:option :string] b "") "second" "売上")
+        d (wf-put (option-value-of [:option :string] c "") "first" 50 27 "外側😀")
+        e (wf-put (option-value-of [:option :string] d "") "second" 5 7 "=A1+2")
+        f (wf-put (option-value-of [:option :string] e "") "first" 1 1 "earlier")
+        g (wf-put (option-value-of [:option :string] f "") "first" 50 27 "replacement")
+        raw (option-value-of [:option :string] g "")
+        duplicate-cell (string-concat "HW3|0:0:" (wf-frame (string-concat (wf-frame "s")
+          (string-concat (wf-frame "S") (string-concat (wf-cell 1 1 "a") (wf-cell 1 1 "b"))))))]
+    (if (and (option-some?-of [:option :string] g) (wf-valid? raw)
+             (string=? (option-value-of [:option :string] (wf-original raw) "") "{\"unknown\":true}")
+             (string=? (option-value-of [:option :string] (wf-get raw "first" 50 27) "") "replacement")
+             (string=? (option-value-of [:option :string] (wf-get raw "second" 5 7) "") "=A1+2")
+             (string=? (option-value-of [:option :string] (wf-get raw "first" 1 1) "") "earlier")
+             (not (option-some?-of [:option :string] (wf-get raw "first" 1 2)))
+             (not (option-some?-of [:option :string] (wf-add-sheet raw "first" "duplicate")))
+             (not (option-some?-of [:option :string] (wf-put raw "first" 0 1 "x")))
+             (not (option-some?-of [:option :string] (wf-put raw "missing" 1 1 "x")))
+             (not (wf-valid? (string-concat raw "x")))
+             (not (wf-valid? duplicate-cell))
+             (not (wf-valid? "HW3|01:a0:"))
+             (not (wf-valid? "HW3|1:あ0:"))) 0 1)))
