@@ -246,6 +246,15 @@ try:
     reload_page()
     wait("document.getElementById('status').textContent.includes('開けません')", 'corruption refusal')
     if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != 'HS1|bad': raise ValueError('corrupt data overwritten')
+    # An older HS1-only app must refuse an authentic HW3, without changing it.
+    evaluate("localStorage.setItem('itonami.hyokeisan.candidate.hs1','HW3|0:0:6:1:s1:S')")
+    reload_page()
+    wait("document.getElementById('status').textContent.includes('開けません')", 'future snapshot refusal')
+    if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != 'HW3|0:0:6:1:s1:S' or evaluate("document.querySelector('[data-k=c0]') !== null"):
+        raise ValueError('old app overwrote or opened HW3')
+    reload_page()
+    wait("document.getElementById('status').textContent.includes('開けません')", 'future snapshot refusal after reload')
+    if evaluate("localStorage.getItem('itonami.hyokeisan.candidate.hs1')") != 'HW3|0:0:6:1:s1:S': raise ValueError('HW3 overwritten on reload')
     evaluate("localStorage.removeItem('itonami.hyokeisan.candidate.hs1')")
     tampered = out / 'tampered'; shutil.copytree(site, tampered)
     bundle = tampered / 'bundle.js'; content = bundle.read_text()
@@ -259,7 +268,7 @@ try:
     requests = [e['params']['request']['url'] for e in pipe.events if e.get('method') == 'Network.requestWillBeSent']
     if any(u.split('?', 1)[0].endswith('/favicon.ico') for u in requests): raise ValueError('unversioned favicon request')
     if not requests or any(not u.startswith(f'http://127.0.0.1:{server.server_port}/') for u in requests): raise ValueError('unexpected network request')
-    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-both-write-failures-conflict','grid','addition','subtraction-multiplication-reload','unicode-formula-save-reload','sum','recalculate','cycle','save-reload','synthetic-composition-with-concurrent-redraw','oversized-refusal','concurrent-tab-refusal','worker-timeout-retry','hidden-timeout-retry','worker-interruption-retry','storage-failure-retry','multiple-unsaved-fields','corrupt-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
+    (out / 'result.json').write_text(json.dumps({'status':'PASS','checks':['backup-export-import-cancel-restore','backup-invalid-both-write-failures-conflict','grid','addition','subtraction-multiplication-reload','unicode-formula-save-reload','sum','recalculate','cycle','save-reload','synthetic-composition-with-concurrent-redraw','oversized-refusal','concurrent-tab-refusal','worker-timeout-retry','hidden-timeout-retry','worker-interruption-retry','storage-failure-retry','multiple-unsaved-fields','corrupt-refusal','future-HW3-refusal','digest-refusal','loopback-only']},indent=2)+'\n')
     print('PASS_HYOKEISAN_BROWSER_UI grid, calculation, save and refusal')
 finally:
     pipe.close(); server.shutdown(); server.server_close()
