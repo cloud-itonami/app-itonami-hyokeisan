@@ -1,0 +1,76 @@
+(ns hyokeisan.legacy-metadata
+  (:export [legacy-metadata-pairs legacy-metadata-titles])
+  (:require [hyokeisan.json-string :as js]
+            [hyokeisan.json-parse :as json]
+            [hyokeisan.workbook :as workbook]
+            [hyokeisan.legacy-grid :as grid]))
+
+;; Parse a legacy sheetsJson array, retaining order, ID type and title. The
+;; caller must preserve the complete input and prove its source/revision.
+;; Each object is validated independently, so the outer array is not limited
+;; to a 32-element document vector. Unsupported inputs are refused, not cut.
+(defn lm-digit-id? [s :string] :bool
+  (let [n (string-byte-length s)]
+    (if (or (= n 0) (> n 18) (and (> n 1) (= (string-code-point-at s 0) 48))) false
+      (loop [p 0]
+        (if (= p n) true
+          (let [c (string-code-point-at s p)]
+            (if (or (< c 48) (> c 57)) false (recur (+ p 1)))))))))
+(defn lm-id [raw :string] [:option :string]
+  (if (= (string-byte-length raw) 0) (option-none-of [:option :string])
+    (if (= (string-code-point-at raw 0) 34)
+      (let [v (js/json-unquote raw)]
+        (if (and (option-some?-of [:option :string] v)
+                 (> (string-byte-length (option-value-of [:option :string] v "")) 0)
+                 (<= (string-byte-length (option-value-of [:option :string] v "")) 1022))
+          (option-some-of [:option :string] (string-concat "s:" (option-value-of [:option :string] v "")))
+          (option-none-of [:option :string])))
+      (if (lm-digit-id? raw) (option-some-of [:option :string] (string-concat "n:" raw))
+        (option-none-of [:option :string])))))
+(defn lm-items [s :string pos :i64 n :i64 pairs :string ids :string titles :string first :bool count :i64] [:option :string]
+  (let [p (json/jp-space s pos n)]
+    (if (>= p n) (option-none-of [:option :string])
+      (let [c (string-code-point-at s p)]
+        (cond (= c 93) (if (and first (= (json/jp-space s (+ p 1) n) n))
+                         (option-some-of [:option :string] pairs) (option-none-of [:option :string]))
+              (or (not= c 123) (>= count 1024)) (option-none-of [:option :string])
+              :else (let [stop (json/jp-value s p n 0)]
+                (if (< stop 0) (option-none-of [:option :string])
+                  (let [item (string-substring s p stop)
+                        id-raw (json/json-object-field item "sheetId") title-raw (json/json-object-field item "title")]
+                    (if (or (not (option-some?-of [:option :string] id-raw)) (not (option-some?-of [:option :string] title-raw)))
+                      (option-none-of [:option :string])
+                      (let [id (lm-id (option-value-of [:option :string] id-raw ""))
+                            title (js/json-unquote (option-value-of [:option :string] title-raw ""))]
+                        (if (or (not (option-some?-of [:option :string] id)) (not (option-some?-of [:option :string] title)))
+                          (option-none-of [:option :string])
+                          (let [ident (option-value-of [:option :string] id "") name (option-value-of [:option :string] title "")
+                                q (json/jp-space s stop n)]
+                            (if (or (> (string-byte-length name) 1024) (grid/lg-seen? ids ident)
+                                    (grid/lg-seen? titles name) (>= q n)) (option-none-of [:option :string])
+                              (let [next (string-concat pairs (string-concat (workbook/wf-frame ident) (workbook/wf-frame name)))
+                                    c2 (string-code-point-at s q)]
+                                (cond (= c2 93) (if (= (json/jp-space s (+ q 1) n) n)
+                                                  (option-some-of [:option :string] next) (option-none-of [:option :string]))
+                                      (= c2 44) (lm-items s (+ q 1) n next
+                                        (string-concat ids (workbook/wf-frame ident))
+                                        (string-concat titles (workbook/wf-frame name)) false (+ count 1))
+                                      :else (option-none-of [:option :string]))))))))))))))))
+(defn legacy-metadata-pairs [s :string] [:option :string]
+  (let [n (string-byte-length s) p (json/jp-space s 0 n)]
+    (if (or (> n 35000) (>= p n)) (option-none-of [:option :string])
+      (if (= (string-code-point-at s p) 91) (lm-items s (+ p 1) n "" "" "" true 0)
+        (option-none-of [:option :string])))))
+(defn lm-titles [s :string pos :i64 acc :string] [:option :string]
+  (if (= pos (string-byte-length s)) (option-some-of [:option :string] acc)
+    (let [id (workbook/wf-read s pos)]
+      (if (< (workbook/wf-start id) 0) (option-none-of [:option :string])
+        (let [title (workbook/wf-read s (workbook/wf-end id))]
+          (if (< (workbook/wf-start title) 0) (option-none-of [:option :string])
+            (lm-titles s (workbook/wf-end title)
+              (string-concat acc (workbook/wf-frame (workbook/wf-text s title))))))))))
+(defn legacy-metadata-titles [s :string] [:option :string]
+  (let [pairs (legacy-metadata-pairs s)]
+    (if (option-some?-of [:option :string] pairs)
+      (lm-titles (option-value-of [:option :string] pairs "") 0 "")
+      (option-none-of [:option :string]))))
