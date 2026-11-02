@@ -74,6 +74,9 @@ bad_pulls = [altered_pull(lambda x: x.update(entity='sheet:book:other')),
              altered_pull(lambda x: x['attrs'].update({':sheet/id': [edn('sheet:book:other')]})),
              altered_pull(lambda x: x['attrs'].pop(':sheet/gridJson')),
              altered_pull(lambda x: x['attrs'].update({':sheet/title': [edn('x'), edn('y')]})),
+             altered_pull(lambda x: x['attrs'].update({':sheet/title': []})),
+             altered_pull(lambda x: x['attrs'].update({':sheet/title': ['null']})),
+             altered_pull(lambda x: x['attrs'].update({':sheet/title': [edn('x'), 'null']})),
              altered_pull(lambda x: x['attrs'].update({':sheet/revision': ['-1']})),
              altered_pull(lambda x: x.update(ok=False)), '{"ok":true,"datoms":[]}']
 large_metadata = '[{"sheetId":0,"title":"A"}]'
@@ -138,6 +141,8 @@ pull_id_anchor = '(not (string=? e (option-value-of [:option :string] id "")))'
 if source.count(pull_id_anchor) != 1: raise ValueError('pull identity mutation anchor changed')
 pull_source_anchor = '(string-concat "LE2|" (wf-frame raw))'
 if source.count(pull_source_anchor) != 1: raise ValueError('pull provenance mutation anchor changed')
+pull_cardinality_anchor = '(option-some?-of [:option :string] second)'
+if source.count(pull_cardinality_anchor) != 1: raise ValueError('pull cardinality mutation anchor changed')
 surrogate_anchor = '(not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 12))'
 if source.count(surrogate_anchor) != 1: raise ValueError('surrogate split mutation anchor changed')
 cases = [('grid', source, 0), ('coordinate-mutant', source.replace(anchor, '(string-concat acc (wf-cell col row value))', 1), 1),
@@ -146,6 +151,7 @@ cases = [('grid', source, 0), ('coordinate-mutant', source.replace(anchor, '(str
          ('provenance-mutant', source.replace(provenance_anchor, '(wf-frame "")', 1), 1),
          ('pull-id-mutant', source.replace(pull_id_anchor, 'false', 1), 1),
          ('pull-source-mutant', source.replace(pull_source_anchor, '(string-concat "LE2|" (wf-frame ""))', 1), 1),
+         ('pull-cardinality-mutant', source.replace(pull_cardinality_anchor, 'false', 1), 1),
          ('surrogate-split-mutant', source.replace(surrogate_anchor, '(not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 6))', 1), 1)]
 
 def load(name, path):

@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-03",
+  "status": "PASS_SINGLE_VALUE_PULL_WITH_BOUNDED_VALIDATION",
+  "baseHead": "1eb2203573f549004b3d325364c4a2e1205fa269",
+  "sources": {
+    "src/hyokeisan/json_parse.kotoba": "c7d0ebadcb1c7c36536e8f404bb86656b1f2823f620a15be8f706a6c5d581b90",
+    "src/hyokeisan/legacy_pull.kotoba": "8aaabdd03237e34280d4d49da2a90ffc1cc2772fbf3f4cf8aee2cfb6901bd725",
+    "scripts/check-legacy-grid.py": "046eec89eabe741c3b2d5873017006ba802791dea0638933c8d85c508aa315ce",
+    "scripts/check-idb-legacy-import.py": "857595c6e27f253beeb364614f7d6f75453561c127e1d54f9d4ae92d95aca3b7"
+  },
+  "browserBuild": {
+    "wasmSha256": "1bd141d87608ee0297ec9e4daad669e7d84021748c142ca255832eebde6132ca",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "0688697e7bd20fb2b71ca8a26ac8516ec6fce77bdea8cfff54dd079570de0af6",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab",
+    "draftPolicyRevision": "26da503693359e3e7d544b50b97cae1c5cf6041e",
+    "draftPolicySourceSha256": "8888ad0d88e8f954b5b1cd4fa0d3da62ac13e906f9410866cfd9dec6112f11f2",
+    "draftPolicyWasmSha256": "baa17f80e3ce7ce32b86086606168846454ca547842359251b50b911d4b89e42",
+    "didSha256": "4949be2174337d03be51a68e95eb014fab5062bd5e4371fd2110be28895449a9",
+    "storageRevision": "d569c4cc7e884c58dc5867c38731c9465bac70dc",
+    "transactionalStorageSha256": "3d83f73142bd053dadb82d23d8e220ee9f3490515568b048d95f2ac1954c5dcf",
+    "managedStorageSha256": "f48d45cedf89be861f1a3376e04ded9a19c2914e3cbd4756326b1799ab7a14c0"
+  },
+  "validation": {
+    "idb": {
+      "status": "PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC",
+      "nearSnapshotBytes": 34518,
+      "nearCells": 1600,
+      "nearBackupVerified": true,
+      "checks": [
+        "two-file-preview-formula-audit",
+        "preview-edit-race",
+        "audit-failure-refusal",
+        "hostile-and-bounded-formula-audit",
+        "backup-and-current-failure-rollback",
+        "malformed-long-pull-refused",
+        "atomic-confirm",
+        "source-export-exact",
+        "pull-preview-identity-formula-audit",
+        "pull-source-export-exact",
+        "second-sheet-formula-reload",
+        "missing-sheet-refusal",
+        "bad-identity-and-cardinality-refusal",
+        "hostile-pull-text-only",
+        "near-limit-pull-restore-reload",
+        "over-limit-refusal",
+        "stale-other-tab-pull-refusal",
+        "local-requests-only"
+      ],
+      "scope": "synthetic data and Chrome loopback; source authority and real-user migration unverified"
+    },
+    "legacyGridNativeAndWasm": {
+      "sourceSha256": "c6423d05023424e7d4c6afbaa0b7cd3f23abfad00f05c9f4e741b0b0a464622f",
+      "compilerSha256": "971c25c7b221c51d584279d90b6d32c7bb783aa813aedac6614ecf67c4915f62",
+      "controls": [
+        "grid",
+        "coordinate-mutant",
+        "title-count-mutant",
+        "duplicate-id-mutant",
+        "provenance-mutant",
+        "pull-id-mutant",
+        "pull-source-mutant",
+        "pull-cardinality-mutant",
+        "surrogate-split-mutant"
+      ]
+    },
+    "cardinalityDifferential": {
+      "cases": 61,
+      "status": "PASS_OLD_NEW_CARDINALITY_PARITY"
+    },
+    "nearPull": {
+      "baselineFuelRemaining": 21873826,
+      "candidateFuelRemaining": 21955071,
+      "fuelInitial": 25000000,
+      "sameOutputSha256": "868c9ee0ad8e5d593e83e13c6a0e484d4ad28c4f2df956119e1750c82155b077",
+      "outputBytes": 34519
+    }
+  },
+  "compactLab": {
+    "fixture": "isolated synthetic gridJson attribute from 1600-cell pull",
+    "compilerSha256": "3c63cc6c8c4641bf971173e8baa7596326f6e992d23e1b965df6fff4d4041b63",
+    "result": {
+      "exit": 0,
+      "report": "{:status :ok :result 0 :fuel {:initial 100000000 :remaining 99487637}}",
+      "outputBytes": 6410,
+      "outputSha256": "89191a04157e5a03f8fe88bb920eb9dfe9110d5f499fad356a688f80ab261780",
+      "arenaProfile": {
+        "linearBytes": 7536640,
+        "pairs": 883,
+        "poolBytes": 34482,
+        "vectors": 6,
+        "items": 32044,
+        "regions": 0,
+        "keywordRows": 0,
+        "peakPairs": 904,
+        "peakPoolBytes": 34482,
+        "peakVectors": 28,
+        "peakItems": 32044,
+        "peakRegions": 0,
+        "peakKeywordRows": 0
+      }
+    },
+    "wholePull": "still traps when the grid-construction vector table reaches 8192; not an OS runtime"
+  },
+  "limitations": [
+    "Synthetic inputs only; old export identity, authorization and actual user migration are unverified.",
+    "The compact Wasm runtime and counters are experimental and not a QEMU OS process or complete workload memory bound.",
+    "Cardinality parity is measured on a bounded corpus, including duplicate keys and invalid arrays; it is not a formal equivalence proof.",
+    "No power-loss test, live fleet, public delivery or production release."
+  ]
+}

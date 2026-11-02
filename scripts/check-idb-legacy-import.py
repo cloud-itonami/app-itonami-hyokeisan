@@ -28,6 +28,8 @@ attrs={':sheet/type':[edn('Spreadsheet')],':sheet/id':[edn('sheet:book:demo')],'
 pull_obj={'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':attrs}
 pull=json.dumps(pull_obj,ensure_ascii=False,separators=(',',':'))+'\n'
 bad_pull=json.loads(pull);bad_pull['entity']='sheet:book:other';bad_pull=json.dumps(bad_pull,ensure_ascii=False,separators=(',',':'))
+bad_empty=json.loads(pull);bad_empty['attrs'][':sheet/title']=[];bad_empty=json.dumps(bad_empty,ensure_ascii=False,separators=(',',':'))
+bad_extra=json.loads(pull);bad_extra['attrs'][':sheet/title']=[edn('予算'),'null'];bad_extra=json.dumps(bad_extra,ensure_ascii=False,separators=(',',':'))
 hostile_pull=json.loads(pull);hostile_pull['graph']='<img src=x onerror=alert(1)>';hostile_pull=json.dumps(hostile_pull,ensure_ascii=False,separators=(',',':'))
 wide_meta='[{"sheetId":0,"title":"A"}]'
 hostile_title='<img src=x onerror=alert(1)>'
@@ -51,7 +53,7 @@ valid_attrs=dict(wide_attrs);valid_attrs[':sheet/gridJson']=[edn(valid_grid)]
 invalid_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':invalid_attrs},ensure_ascii=False,separators=(',',':'))
 valid_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':valid_attrs},ensure_ascii=False,separators=(',',':'))
 files={}
-for name,value in [('sheets',meta),('grid',grid),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-meta',formula_meta),('formula-grid',formula_grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('invalid-pull',invalid_pull),('valid-pull',valid_pull),('near-pull',near_pull),('over-pull',over_pull)]:
+for name,value in [('sheets',meta),('grid',grid),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-meta',formula_meta),('formula-grid',formula_grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('bad-empty',bad_empty),('bad-extra',bad_extra),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('invalid-pull',invalid_pull),('valid-pull',valid_pull),('near-pull',near_pull),('over-pull',over_pull)]:
  files[name]=out/(name+'.json');files[name].write_text(value,encoding='utf-8')
 f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
@@ -163,10 +165,12 @@ try:
  wait("document.querySelector('[data-k=c0]')?.value==='雪' && document.getElementById('status').textContent==='保存しました'",'first sheet restored')
  if stored()!=expected:raise ValueError('first sheet restored snapshot differs')
  # Invalid identity and untrusted display metadata must not modify the record.
- before=record('current');choose('#legacy-pull',files['bad-pull'])
- ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
- wait("document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'bad identity refused')
- if record('current')!=before or ev("document.getElementById('backup-dialog').open"):raise ValueError('bad pull identity changed state')
+ before=record('current')
+ for name in ('bad-pull','bad-empty','bad-extra'):
+  choose('#legacy-pull',files[name])
+  ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
+  wait("document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",name+' refused')
+  if record('current')!=before or ev("document.getElementById('backup-dialog').open"):raise ValueError(name+' changed state')
  choose('#legacy-pull',files['hostile-pull']);ev("document.getElementById('legacy-pull-preview').click()")
  wait("document.getElementById('backup-dialog').open",'hostile pull preview')
  if not ev("document.getElementById('backup-label').textContent.includes('<img src=x')") or ev("document.querySelector('#backup-label img')!==null"):raise ValueError('hostile pull metadata rendered as markup')
@@ -238,7 +242,7 @@ try:
  pipe.call('Target.closeTarget',{'targetId':other_target})
  requests=[event['params']['request']['url'] for event in pipe.events if event.get('method')=='Network.requestWillBeSent']
  if not requests or any(not url.startswith(base) for url in requests):raise ValueError('unexpected network request')
- report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-refusal','hostile-pull-text-only','near-limit-pull-restore-reload','over-limit-refusal','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
+ report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-and-cardinality-refusal','hostile-pull-text-only','near-limit-pull-restore-reload','over-limit-refusal','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
  (out/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(report['status'])
 finally:
  pipe.close();server.shutdown();server.server_close()
