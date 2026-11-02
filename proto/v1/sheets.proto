@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package sheets;
 
-option go_package = "github.com/cloud-itonami/app-itonami-kazu/gen/sheets";
+option go_package = "github.com/cloud-itonami/app-itonami-hyokeisan/gen/sheets";
 
 import "google/protobuf/timestamp.proto";
 
