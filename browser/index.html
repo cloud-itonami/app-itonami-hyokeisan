@@ -29,6 +29,9 @@
     <label>シート一覧 JSON <input id="legacy-sheets" type="file" accept=".json,application/json"></label>
     <label>グリッド JSON <input id="legacy-grid" type="file" accept=".json,application/json"></label>
     <button id="legacy-preview" type="button">読み込み内容を確認</button>
+    <p>または、旧ストアの pull 応答を保存した JSON を選択できます。出所、権限による欠落、取得時点の完全性は自動確認できません。</p>
+    <label>旧 pull 応答 JSON <input id="legacy-pull" type="file" accept=".json,application/json"></label>
+    <button id="legacy-pull-preview" type="button">pull 応答の内容を確認</button>
   </section>
   <input id="backup-file" type="file" accept=".hs1,.hu1,application/octet-stream" hidden>
   <dialog id="backup-dialog" aria-labelledby="backup-heading">

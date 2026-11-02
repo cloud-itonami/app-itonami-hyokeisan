@@ -29,12 +29,12 @@ def stage(root, entry=True):
         source += '\n' + module
     if entry:
         for filename in ('json_string.kotoba', 'json_parse.kotoba', 'legacy_grid.kotoba',
-                         'legacy_metadata.kotoba', 'legacy_workbook.kotoba'):
+                         'legacy_metadata.kotoba', 'legacy_workbook.kotoba', 'legacy_pull.kotoba'):
             module = (root / 'src/hyokeisan' / filename).read_text(encoding='utf-8')
             module, n = re.subn(r'\A\(ns\s+hyokeisan\.[\s\S]*?\)\)\s*', '', module, count=1)
             if n != 1:
                 raise SystemExit('unexpected module ' + filename)
-            for prefix in ('js/', 'json/', 'workbook/', 'grid/', 'metadata/', 'ui/'):
+            for prefix in ('js/', 'json/', 'workbook/', 'grid/', 'metadata/', 'legacy/', 'ui/'):
                 module = module.replace('(' + prefix, '(')
             source += '\n' + module
         source += '\n' + (root / 'src/hyokeisan/browser-entry.kotoba').read_text(encoding='utf-8')

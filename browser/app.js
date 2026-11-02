@@ -321,6 +321,18 @@ document.getElementById('legacy-preview').addEventListener('click', () => {
     } catch (_) { fail('旧データを読み込めません。現在の表計算は変更していません。'); }
   });
 });
+document.getElementById('legacy-pull-preview').addEventListener('click', () => {
+  const file = document.getElementById('legacy-pull').files[0];
+  pending = pending.then(async () => {
+    try {
+      if (draftBlocked || edits.size || !file || file.size > LIMIT) throw Error('legacy pull input');
+      const raw = decoder.decode(await file.arrayBuffer());
+      const result = await run(['legacy-pull', raw]);
+      if (!result.endsWith('\n') || !result.startsWith('HU1|')) throw Error('legacy pull refused');
+      await previewBackup(result.slice(0, -1), '旧 pull 応答の候補です。先頭シートの一部を表示します。出所と権限による欠落は確認できません。未対応の属性は原文に保持されます。');
+    } catch (_) { fail('旧 pull 応答を読み込めません。現在の表計算は変更していません。'); }
+  });
+});
 async function previewUpgrade() {
   try {
     if (edits.size || typeof snapshot !== 'string' || !snapshot.startsWith('HS1|')) throw Error('upgrade unavailable');
