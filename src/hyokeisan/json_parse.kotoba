@@ -16,7 +16,7 @@
         (if (or (= c 32) (= c 9) (= c 10) (= c 13)) (recur (+ at 1)) at)))))
 (defn jp-string-end [s :string i :i64 n :i64 start :i64] :i64
   (loop [at i]
-    (if (or (>= at n) (>= (- at start) 8192)) -1
+    (if (or (>= at n) (>= (- at start) 35000)) -1
       (let [c (string-code-point-at s at)]
         (cond (= c 34) (+ at 1)
               (< c 32) -1

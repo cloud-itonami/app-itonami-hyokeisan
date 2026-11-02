@@ -3,7 +3,7 @@
 
 ;; Based on Bunsho src/moji/json_string.kotoba at 09f425164e2af3985a12fa661970673ac70e16d6.
 ;; Decode one complete JSON string token. Indices are UTF-8 byte offsets.
-;; Tokens are capped at 8192 UTF-8 bytes. This is a migration building block,
+;; Tokens are capped at 35000 UTF-8 bytes. This is a migration building block,
 ;; not an old-document parser or importer.
 (defn json-hex [c :i64] :i64
   (cond (and (>= c 48) (<= c 57)) (- c 48)
@@ -62,8 +62,45 @@
                 (json-unquote-from s (+ i width) end
                   (string-concat acc (string-substring s i (+ i width)))))))))
 
+;; Split only between complete UTF-8 characters and escape sequences. Decode
+;; bounded leaves and combine them as a balanced tree, avoiding quadratic
+;; copying of a growing accumulator for long escaped response strings.
+(defn json-token-next [s :string p :i64 end :i64] :i64
+  (let [c (string-code-point-at s p)]
+    (if (not (= c 92))
+      (+ p (cond (< c 128) 1 (< c 2048) 2 (< c 65536) 3 :else 4))
+      (if (>= (+ p 1) end) -1
+        (if (not (= (string-code-point-at s (+ p 1)) 117)) (+ p 2)
+          (if (> (+ p 6) end) -1
+            (let [u (json-hex4 s (+ p 2) end)]
+              (if (and (>= u 55296) (<= u 56319))
+                (if (or (> (+ p 12) end) (not (= (string-code-point-at s (+ p 6)) 92))
+                        (not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 12))
+                (+ p 6)))))))))
+(defn json-split [s :string p :i64 end :i64 target :i64] :i64
+  (if (or (>= p target) (>= p end)) p
+    (let [next (json-token-next s p end)]
+      (if (or (< next 0) (> next end)) -1 (json-split s next end target)))))
+(defn json-balanced [s :string start :i64 end :i64] [:option :string]
+  (if (<= (- end start) 64)
+    (let [token (string-concat "\"" (string-concat (string-substring s start end) "\""))]
+      (json-unquote-from token 1 (string-byte-length token) ""))
+    (let [mid (json-split s start end (+ start (quot (- end start) 2)))]
+      (if (or (<= mid start) (>= mid end)) (option-none-of [:option :string])
+        (let [left (json-balanced s start mid) right (json-balanced s mid end)]
+          (if (and (option-some?-of [:option :string] left) (option-some?-of [:option :string] right))
+            (option-some-of [:option :string] (string-concat (option-value-of [:option :string] left "")
+                                                            (option-value-of [:option :string] right "")))
+            (option-none-of [:option :string])))))))
+(defn json-final-quote? [s :string p :i64 n :i64] :bool
+  (if (>= p n) false
+    (let [c (string-code-point-at s p)]
+      (if (= c 34) (= (+ p 1) n)
+        (let [next (json-token-next s p n)]
+          (if (or (< next 0) (> next n)) false (json-final-quote? s next n)))))))
 (defn json-unquote [s :string] [:option :string]
   (let [n (string-byte-length s)]
-    (if (or (< n 2) (> n 8192) (not (= (string-code-point-at s 0) 34)))
+    (if (or (< n 2) (> n 35000) (not (= (string-code-point-at s 0) 34)))
       (option-none-of [:option :string])
-      (json-unquote-from s 1 n ""))))
+      (if (not (json-final-quote? s 1 n)) (option-none-of [:option :string])
+        (json-balanced s 1 (- n 1))))))

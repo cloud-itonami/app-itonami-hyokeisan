@@ -31,6 +31,11 @@ raw = json.dumps(rows, ensure_ascii=False, separators=(',', ':'))
 escaped = json.dumps([['雪😀', 'line\nnext', '"\\/']], ensure_ascii=True, separators=(',', ':'))
 escaped_expected = ''.join(frame('1') + frame(str(c + 1)) + frame(v)
                            for c, v in enumerate(['雪😀', 'line\nnext', '"\\/']))
+long_text = ('a' * 31 + '😀' + '"\\\n' + '雪' * 8) * 100
+long_token = json.dumps(long_text, ensure_ascii=True)
+invalid_strings = ['"' + 'a' * 64 + '\\uD800"', '"' + 'a' * 65 + '"x"', '"' + 'a' * 80 + '雪']
+boundary_token = '"' + 'a' * 29 + '\\uD83D\\uDE00' + 'b' * 29 + '"'
+boundary_text = 'a' * 29 + '😀' + 'b' * 29
 grid_object = json.dumps({**{'Sheet' + str(i): [[str(i)]] for i in range(40)},
                           '予算!': [['雪', '😀']]}, ensure_ascii=False, separators=(',', ':'))
 object_expected = frame('1') + frame('1') + frame('雪') + frame('1') + frame('2') + frame('😀')
@@ -85,6 +90,9 @@ bad = ['[[],]', '[["x",]]', '[["x"]] trailing', '[[null]]', '[["\\q"]]',
 fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + ')] (if (and ' + \
     '(option-some?-of [:option :string] v) (string=? (option-value-of [:option :string] v "") ' + literal(expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-cells ' + literal(escaped) + ') "bad") ' + literal(escaped_expected) + ') ' + \
+    '(string=? (option-value-of [:option :string] (json-unquote ' + literal(long_token) + ') "bad") ' + literal(long_text) + ') ' + \
+    '(string=? (option-value-of [:option :string] (json-unquote ' + literal(boundary_token) + ') "bad") ' + literal(boundary_text) + ') ' + \
+    ' '.join('(not (option-some?-of [:option :string] (json-unquote ' + literal(item) + ')))' for item in invalid_strings) + ' ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-find ' + literal(grid_object) + ' "予算!") "bad") ' + literal(object_expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-metadata-pairs ' + literal(metadata) + ') "bad") ' + literal(metadata_pairs) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-metadata-titles ' + literal(metadata) + ') "bad") ' + literal(object_titles) + ') ' + \
@@ -116,12 +124,15 @@ pull_id_anchor = '(not (string=? e (option-value-of [:option :string] id "")))'
 if source.count(pull_id_anchor) != 1: raise ValueError('pull identity mutation anchor changed')
 pull_source_anchor = '(string-concat "LE2|" (wf-frame raw))'
 if source.count(pull_source_anchor) != 1: raise ValueError('pull provenance mutation anchor changed')
+surrogate_anchor = '(not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 12))'
+if source.count(surrogate_anchor) != 1: raise ValueError('surrogate split mutation anchor changed')
 cases = [('grid', source, 0), ('coordinate-mutant', source.replace(anchor, '(string-concat acc (wf-cell col row value))', 1), 1),
          ('title-count-mutant', source.replace(count_anchor, 'true', 1), 1),
          ('duplicate-id-mutant', source.replace(id_anchor, 'false', 1), 1),
          ('provenance-mutant', source.replace(provenance_anchor, '(wf-frame "")', 1), 1),
          ('pull-id-mutant', source.replace(pull_id_anchor, 'false', 1), 1),
-         ('pull-source-mutant', source.replace(pull_source_anchor, '(string-concat "LE2|" (wf-frame ""))', 1), 1)]
+         ('pull-source-mutant', source.replace(pull_source_anchor, '(string-concat "LE2|" (wf-frame ""))', 1), 1),
+         ('surrogate-split-mutant', source.replace(surrogate_anchor, '(not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 6))', 1), 1)]
 
 def load(name, path):
     spec = importlib.util.spec_from_file_location(name, path)

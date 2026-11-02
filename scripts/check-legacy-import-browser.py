@@ -23,8 +23,12 @@ attrs={':sheet/type':[edn('Spreadsheet')],':sheet/id':[edn('sheet:book:demo')],'
 pull_obj={'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':attrs}
 pull=json.dumps(pull_obj,ensure_ascii=False,separators=(',',':'))
 bad_pull=json.loads(pull);bad_pull['entity']='sheet:book:other';bad_pull=json.dumps(bad_pull,ensure_ascii=False,separators=(',',':'))
+wide_meta='[{"sheetId":0,"title":"A"}]'
+wide_grid=json.dumps({'A':[['1']*1024]},separators=(',',':'))
+wide_attrs=dict(attrs);wide_attrs[':sheet/title']=[edn('Wide')];wide_attrs[':sheet/sheetsJson']=[edn(wide_meta)];wide_attrs[':sheet/gridJson']=[edn(wide_grid)]
+wide_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':wide_attrs},ensure_ascii=False,separators=(',',':'))
 files={}
-for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull)]:
+for name,value in [('sheets',meta),('grid',grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull)]:
  files[name]=out/(name+'.json');files[name].write_text(value,encoding='utf-8')
 f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
@@ -35,6 +39,12 @@ book='HW3|'+f('予算')+f(provenance)+f(a)+f(b)
 expected='HU1|'+f(book)+f('n:0')+f('1')+f('1')
 pull_book='HW3|'+f('予算')+f('LE2|'+f(pull))+f(a)+f(b)
 pull_expected='HU1|'+f(pull_book)+f('n:0')+f('1')+f('1')
+wide_source='LE1|'+f('Wide')+f(wide_meta)+f(wide_grid)
+wide_cells=''.join(cell(1,i,'1') for i in range(1,1025))
+wide_book='HW3|'+f('Wide')+f(wide_source)+f(f('n:0')+f('A')+wide_cells)
+wide_expected='HU1|'+f(wide_book)+f('n:0')+f('1')+f('1')
+wide_pull_book='HW3|'+f('Wide')+f('LE2|'+f(wide_pull))+f(f('n:0')+f('A')+wide_cells)
+wide_pull_expected='HU1|'+f(wide_pull_book)+f('n:0')+f('1')+f('1')
 try:
  target=pipe.call('Target.createTarget',{'url':'about:blank'})['targetId'];session=pipe.call('Target.attachToTarget',{'targetId':target,'flatten':True})['sessionId']
  pipe.call('Network.enable',{},session);pipe.call('Page.navigate',{'url':base+'site/index.html'},session)
@@ -99,8 +109,9 @@ try:
  if stored()!=baseline:raise ValueError('invalid pull changed storage')
  choose('#legacy-pull',files['pull'])
  def pull_preview():
-  ev("document.getElementById('legacy-pull-preview').click()")
-  wait("document.getElementById('backup-dialog').open",'pull preview')
+  ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
+  wait("document.getElementById('backup-dialog').open || document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'pull preview')
+  if not ev("document.getElementById('backup-dialog').open"):raise ValueError('pull preview refused')
  pull_preview()
  if stored()!=baseline or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='雪':raise ValueError('pull preview mismatch')
  if not ev("document.getElementById('backup-label').textContent.includes('権限による欠落')"):raise ValueError('pull visibility notice missing')
@@ -120,9 +131,20 @@ try:
  ev('window.__reloadMarker=true');pipe.call('Page.reload',{},session);wait('window.__reloadMarker!==true','pull reload')
  wait("document.querySelector('[data-k=c0]')?.value==='雪'",'pull reopen')
  if stored()!=pull_expected:raise ValueError('pull reopen changed response or workbook')
+ ev("document.getElementById('legacy-title').value='Wide'")
+ choose('#legacy-sheets',files['wide-meta']);choose('#legacy-grid',files['wide-grid']);preview()
+ if stored()!=pull_expected or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='1':raise ValueError('wide preview changed state or failed')
+ ev("document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent==='バックアップから復元しました。'",'wide commit')
+ if stored()!=wide_expected:raise ValueError('wide import did not preserve every cell and provenance')
+ choose('#legacy-pull',files['wide-pull']);pull_preview()
+ if stored()!=wide_expected or ev("document.querySelector('#backup-preview [data-k=c0]')?.value")!='1':raise ValueError('wide pull preview failed or changed state')
+ ev("document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent==='バックアップから復元しました。'",'wide pull commit')
+ if stored()!=wide_pull_expected:raise ValueError('wide pull import lost cells or response bytes')
  requests=[e['params']['request']['url'] for e in pipe.events if e.get('method')=='Network.requestWillBeSent']
  if not requests or any(not u.startswith(base) for u in requests):raise ValueError('unexpected network request')
- (out/'result.json').write_text(json.dumps({'status':'PASS','scope':'synthetic local Chrome','checks':['mismatched sheet and pull identity refusal','two-file and pull preview/cancel','backup and primary write failure','stale storage refusal','byte-exact import and pull provenance','second sheet and reload','local requests only'],'limitations':['no verified old export, authorization, completeness or revision','no real user migration','no QEMU or publication']},indent=2)+'\n')
+ (out/'result.json').write_text(json.dumps({'status':'PASS','scope':'synthetic local Chrome','checks':['mismatched sheet and pull identity refusal','two-file and pull preview/cancel','backup and primary write failure','stale storage refusal','byte-exact import and pull provenance','1024-column import','second sheet and reload','local requests only'],'limitations':['no verified old export, authorization, completeness or revision','no real user migration','no QEMU or publication']},indent=2)+'\n')
  print('PASS_LEGACY_IMPORT_BROWSER')
 finally:
  pipe.close();server.shutdown();server.server_close()
