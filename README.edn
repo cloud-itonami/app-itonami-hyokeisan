@@ -1,1 +1,1 @@
-{:schema "etzhayyim.repository/readme-v1" :name "itonami-kazu" :title "itonami Kazu（数）" :kind :application :source "etzhayyim/root/60-apps/etzhayyim-project-sheets"}
+{:schema "etzhayyim.repository/readme-v1" :name "itonami-hyokeisan" :title "itonami Hyokeisan（表計算）" :kind :application :source "etzhayyim/root/60-apps/etzhayyim-project-sheets"}

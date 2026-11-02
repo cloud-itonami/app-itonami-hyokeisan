@@ -1,4 +1,4 @@
-# itonami Kazu（数）— appview の公開方式
+# itonami Hyokeisan（表計算）— appview の公開方式
 
 2026-10-31 から（JUN-700）、この app は **ユーザーのブラウザで動く静的アプリ** として公開する。
 app origin（`kazu.itonami.app`）ではサーバー処理をしない。workspace の共有契約
