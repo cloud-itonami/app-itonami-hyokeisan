@@ -1,0 +1,42 @@
+{
+  "status": "PASS_STATIC_DID_CANDIDATE",
+  "app": "hyokeisan",
+  "builderSha256": "a9c729145b82e69c0f965fbec3ca6459227e5a1e556dee22196c0b249e4b5759",
+  "didSha256": "4949be2174337d03be51a68e95eb014fab5062bd5e4371fd2110be28895449a9",
+  "didId": "did:web:hyokeisan.itonami.app",
+  "buildReceipt": {
+    "wasmSha256": "fd30b0f30e12355ecfa6d357daf21dd28c1b8bbf9f9c5a939b3036fcc49f02a8",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "25920c2c14970924b09dee8600ff544f472ef7d8cf38d59557b2ffcea916892e",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab",
+    "draftPolicyRevision": "26da503693359e3e7d544b50b97cae1c5cf6041e",
+    "draftPolicySourceSha256": "8888ad0d88e8f954b5b1cd4fa0d3da62ac13e906f9410866cfd9dec6112f11f2",
+    "draftPolicyWasmSha256": "baa17f80e3ce7ce32b86086606168846454ca547842359251b50b911d4b89e42",
+    "didSha256": "4949be2174337d03be51a68e95eb014fab5062bd5e4371fd2110be28895449a9"
+  },
+  "previousReceiptSha256": "c40c2cd3ae6ff744948767a86561a6cb21f62c822bc4fef1f2cc61d690b73022",
+  "otherCandidateFilesByteIdentical": true,
+  "integrityTestSha256": "d5d025e719f5671536e31a44f1fd69e0be67136d0634013d3c48614455422db0",
+  "integrityTest": {
+    "status": "PASS_DID_CANDIDATE_INTEGRITY",
+    "apps": [
+      "bunsho",
+      "hyokeisan",
+      "zuhyo"
+    ],
+    "filesEach": 13,
+    "controls": {
+      "missing": "refused",
+      "wrong-id": "refused",
+      "symlink-dir": "refused",
+      "extra-hidden": "refused",
+      "did-bytes": "refused"
+    },
+    "defaultRecursiveAddOmitsDid": true,
+    "hiddenAddRetrievesExactDid": true,
+    "scope": "local isolated Kubo and static candidate bytes; no DID key control, public DNS/TLS, permanent pins or release"
+  },
+  "scope": "static synthetic candidate, DID has no verification keys; no live host, DNS/TLS, signature or release"
+}

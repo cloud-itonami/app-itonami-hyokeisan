@@ -1,0 +1,162 @@
+{
+  "date": "2026-11-03",
+  "scope": "Synthetic loopback Chrome and macOS native host; no real user export, authenticated source, QEMU or release.",
+  "build": {
+    "wasmSha256": "4135bb9c6431602d24483391fb8609ebb3bfb295ac8dbacd7df2e9362d625785",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "0bb333987cc12f4fb9e28793d3f8325b4e188da046db36662994a15d8b9a2bb3",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "appJsSha256": "dc7acf2b84bc10cb10debb46f1090e7edaeb8e5376186b2813b44597589e159f",
+  "checks": [
+    "LE1 title, sheet metadata and grid exported as byte-exact separate files after edit and reload",
+    "LE2 pull response exported byte-exact including final newline",
+    "near-limit 1600-column pull source export",
+    "new workbook has no source export controls",
+    "unsupported source, malformed frames and Unicode-prefix source refused in native and Wasm",
+    "linked native host and mutation controls"
+  ],
+  "legacy": {
+    "status": "PASS",
+    "scope": "synthetic local Chrome",
+    "checks": [
+      "mismatched sheet and pull identity refusal",
+      "two-file and pull preview/cancel",
+      "backup and primary write failure",
+      "stale storage refusal",
+      "byte-exact import and pull provenance",
+      "1024-column import",
+      "1600-column near-limit pull",
+      "1700-column over-limit refusal",
+      "second sheet and reload",
+      "local requests only"
+    ],
+    "nearLimitBytes": 34518,
+    "limitations": [
+      "no verified old export, authorization, completeness or revision",
+      "no real user migration",
+      "no QEMU or publication"
+    ]
+  },
+  "workbook": {
+    "status": "PASS",
+    "checks": [
+      "HS1 preview/cancel",
+      "backup and explicit upgrade",
+      "backup and primary failures",
+      "stale upgrade refusal",
+      "multiple sheets",
+      "offscreen cells",
+      "cross-page formula, division and SUM",
+      "cycle refusal",
+      "save/reload",
+      "stale workbook tab",
+      "HU1 export",
+      "HU1 import preview/cancel/confirm and malformed refusal",
+      "old-app refusal",
+      "prior HS1 restore",
+      "prior workbook recovery",
+      "loopback only"
+    ],
+    "limitations": [
+      "synthetic fixtures",
+      "no old-origin export",
+      "no real migration",
+      "formula subset",
+      "no QEMU or release qualification"
+    ]
+  },
+  "model": {
+    "sourceSha256": "c19f470a4720317ac261f9f3b748140910ce6e04c82547287901ad49987cb4de",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "browser": {
+      "product": "Chrome/156.0.8078.74",
+      "protocol": "1.3"
+    },
+    "reports": {
+      "grid": {
+        "name": "grid",
+        "exit": 0,
+        "stdout": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 20945701}}\n",
+        "stderr": "",
+        "wasmTrap": null,
+        "capLog": [],
+        "output": "",
+        "report": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 20945701}}"
+      },
+      "coordinate-mutant": {
+        "name": "coordinate-mutant",
+        "exit": 0,
+        "stdout": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24982086}}\n",
+        "stderr": "",
+        "wasmTrap": null,
+        "capLog": [],
+        "output": "",
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24982086}}"
+      },
+      "title-count-mutant": {
+        "name": "title-count-mutant",
+        "exit": 0,
+        "stdout": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 20946969}}\n",
+        "stderr": "",
+        "wasmTrap": null,
+        "capLog": [],
+        "output": "",
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 20946969}}"
+      },
+      "duplicate-id-mutant": {
+        "name": "duplicate-id-mutant",
+        "exit": 0,
+        "stdout": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 21641551}}\n",
+        "stderr": "",
+        "wasmTrap": null,
+        "capLog": [],
+        "output": "",
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 21641551}}"
+      },
+      "provenance-mutant": {
+        "name": "provenance-mutant",
+        "exit": 0,
+        "stdout": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 23129016}}\n",
+        "stderr": "",
+        "wasmTrap": null,
+        "capLog": [],
+        "output": "",
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 23129016}}"
+      },
+      "pull-id-mutant": {
+        "name": "pull-id-mutant",
+        "exit": 0,
+        "stdout": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 22475620}}\n",
+        "stderr": "",
+        "wasmTrap": null,
+        "capLog": [],
+        "output": "",
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 22475620}}"
+      },
+      "pull-source-mutant": {
+        "name": "pull-source-mutant",
+        "exit": 0,
+        "stdout": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 22926100}}\n",
+        "stderr": "",
+        "wasmTrap": null,
+        "capLog": [],
+        "output": "",
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 22926100}}"
+      },
+      "surrogate-split-mutant": {
+        "name": "surrogate-split-mutant",
+        "exit": 0,
+        "stdout": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24895559}}\n",
+        "stderr": "",
+        "wasmTrap": null,
+        "capLog": [],
+        "output": "",
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24895559}}"
+      }
+    },
+    "scope": "synthetic single-grid parser; not full migration"
+  }
+}

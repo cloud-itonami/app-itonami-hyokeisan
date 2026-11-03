@@ -1,0 +1,361 @@
+{
+  "status": "PASS_LOCAL_SYNTHETIC_MULTILINE",
+  "date": "2026-11-03",
+  "candidateBuild": {
+    "wasmSha256": "ab04244066fec7ebbc39c96e97f2545d6ece33923876baf36f8ff2f157f64f79",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "746866e79cb0c88d4ae8fa9659390e0370973a9e1160f4ee1b0fdc35362af76f",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "priorCandidateBuild": {
+    "wasmSha256": "1b61c6bb89e7c2cf9ad013472c4d6118443185d6b3536de41c1cb56911d5b134",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "39bd567fb66c6c206c4b3ff3882cc317c0e9cee376a772fae0c90acd8f85f318",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "sourceSha256": {
+    "src/hyokeisan/sheet.kotoba": "6ee7420a72c2442b283b7ec61090139a1ddfac036df5a45cba9d9c8d050c2f8c",
+    "src/hyokeisan/workbook_ui.kotoba": "ff837a9f82334e1a98c4479e1af281a08e15ad5ae81f6f3034824ff9ab698630",
+    "src/hyokeisan/browser-entry.kotoba": "190b04bff7cc8381019be8b04a27788e2357fce489e3329c12df0c4551a1c079",
+    "browser/app.js": "4b46806e52c111d52499c4202e1f6b3001980ee75244497de29ff1e54a896ae1",
+    "browser/index.html": "98c35824615e2bb536c32f3769b0b54045bf4c90279dd8cedfeeab4c7addff01",
+    "browser/style.css": "cd5755055be8e69614c8bf82289ca4b72b97437fade7336ccb199b60446fa400",
+    "scripts/check-multiline-compat.py": "2a32ee5d2168137418a708439052ab2c8b0c641f1235f6a0d11d5b7618d937d5",
+    "scripts/check-browser-ime.py": "0ee08bf997e414ca79c20c911ef26e894c92a76ff0e4b5757f8f6eb71991cad5",
+    "scripts/check-browser-session-draft.py": "039f4ff827e2c29866e29e7c03ee5d606fae375731b4eb25f343196ae1322c31"
+  },
+  "browserChecks": {
+    "multiline_compat": {
+      "status": "PASS",
+      "checks": [
+        "HX1 old editor refuses without write",
+        "new editor reopens exact text",
+        "HS1 auto-protection, conflict and failed-write refusal",
+        "CR normalization refusal",
+        "legacy grid provenance and offscreen multiline",
+        "old workbook backup protected",
+        "invalid HX1 refusal",
+        "loopback only"
+      ],
+      "scope": "synthetic candidate, no real-user migration or release"
+    },
+    "legacy_import": {
+      "status": "PASS",
+      "scope": "synthetic local Chrome",
+      "checks": [
+        "mismatched sheet and pull identity refusal",
+        "two-file and pull preview/cancel",
+        "backup and primary write failure",
+        "stale storage refusal",
+        "byte-exact import and pull provenance",
+        "1024-column import",
+        "1600-column near-limit pull",
+        "1700-column over-limit refusal",
+        "second sheet and reload",
+        "local requests only"
+      ],
+      "nearLimitBytes": 34518,
+      "limitations": [
+        "no verified old export, authorization, completeness or revision",
+        "no real user migration",
+        "no QEMU or publication"
+      ]
+    },
+    "workbook_ui": {
+      "status": "PASS",
+      "checks": [
+        "HS1 preview/cancel",
+        "backup and explicit upgrade",
+        "backup and primary failures",
+        "stale upgrade refusal",
+        "multiple sheets",
+        "offscreen cells",
+        "cross-page formula, division and SUM",
+        "cycle refusal",
+        "save/reload",
+        "stale workbook tab",
+        "HU1 export",
+        "HU1 import preview/cancel/confirm and malformed refusal",
+        "old-app refusal",
+        "prior HS1 restore",
+        "prior workbook recovery",
+        "loopback only"
+      ],
+      "limitations": [
+        "synthetic fixtures",
+        "no old-origin export",
+        "no real migration",
+        "formula subset",
+        "no QEMU or release qualification"
+      ]
+    },
+    "browser_ui": {
+      "status": "PASS",
+      "checks": [
+        "backup-export-import-cancel-restore",
+        "backup-invalid-both-write-failures-conflict",
+        "grid",
+        "addition",
+        "subtraction-multiplication-division-reload",
+        "unicode-formula-save-reload",
+        "sum",
+        "recalculate",
+        "cycle",
+        "save-reload",
+        "synthetic-composition-with-concurrent-redraw",
+        "oversized-refusal",
+        "concurrent-tab-refusal",
+        "worker-timeout-retry",
+        "hidden-timeout-retry",
+        "worker-interruption-retry",
+        "storage-failure-retry",
+        "multiple-unsaved-fields",
+        "corrupt-refusal",
+        "future-HW3-refusal",
+        "digest-refusal",
+        "loopback-only"
+      ]
+    },
+    "draft_workbook": {
+      "status": "PASS",
+      "checks": [
+        "same-tab-reload",
+        "explicit-recovery-and-retry",
+        "stale-draft-refusal",
+        "raw-export",
+        "explicit-discard",
+        "malformed-draft-refusal",
+        "recovery-selection-race-refusal",
+        "journal-quota-and-retry",
+        "journal-cleanup-failure",
+        "initial-state-mismatch",
+        "program-digest-mismatch",
+        "journal-read-failure-retry",
+        "empty-journal-read-retry",
+        "loopback-only"
+      ],
+      "limitations": [
+        "sessionStorage only",
+        "not crash or closed-tab durability",
+        "synthetic data"
+      ]
+    },
+    "ime_workbook": {
+      "status": "PASS_CDP_SYNTHETIC_IME",
+      "mid": {
+        "value": "日本",
+        "stored": "HU1|218:HW3|18:無題の表計算36:HS1|0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:150:11:hs1-sheet-16:Sheet11:11:10:1:11:20:1:11:30:1:11:40:1:21:10:1:21:20:1:21:30:1:21:40:1:31:10:1:31:20:1:31:30:1:31:40:1:41:10:1:41:20:1:41:30:1:41:40:11:hs1-sheet-11:11:1",
+        "events": [
+          {
+            "type": "compositionstart",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "compositionupdate",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "beforeinput",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "input",
+            "composing": true,
+            "trusted": true
+          }
+        ]
+      },
+      "final": {
+        "value": "日本語",
+        "events": [
+          {
+            "type": "compositionstart",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "compositionupdate",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "beforeinput",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "input",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "compositionupdate",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "beforeinput",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "input",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "compositionend",
+            "composing": false,
+            "trusted": false
+          }
+        ]
+      },
+      "limitations": [
+        "CDP-generated browser events; not a physical OS IME test",
+        "loopback local candidate; not a release"
+      ],
+      "multiline": "日本語\n二行目"
+    },
+    "unload": {
+      "status": "PASS",
+      "checks": [
+        "activated-dirty-reload-warning",
+        "cancel-retains-input",
+        "retry",
+        "clean-reload-no-warning"
+      ],
+      "limitations": [
+        "browser may suppress beforeunload",
+        "does not provide crash recovery"
+      ]
+    },
+    "draft_single_sheet": {
+      "status": "PASS",
+      "checks": [
+        "same-tab-reload",
+        "explicit-recovery-and-retry",
+        "stale-draft-refusal",
+        "raw-export",
+        "explicit-discard",
+        "malformed-draft-refusal",
+        "recovery-selection-race-refusal",
+        "journal-quota-and-retry",
+        "journal-cleanup-failure",
+        "initial-state-mismatch",
+        "program-digest-mismatch",
+        "journal-read-failure-retry",
+        "empty-journal-read-retry",
+        "loopback-only"
+      ],
+      "limitations": [
+        "sessionStorage only",
+        "not crash or closed-tab durability",
+        "synthetic data"
+      ]
+    },
+    "ime_single_sheet": {
+      "status": "PASS_CDP_SYNTHETIC_IME",
+      "mid": {
+        "value": "日本",
+        "stored": null,
+        "events": [
+          {
+            "type": "compositionstart",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "compositionupdate",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "beforeinput",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "input",
+            "composing": true,
+            "trusted": true
+          }
+        ]
+      },
+      "final": {
+        "value": "日本語",
+        "events": [
+          {
+            "type": "compositionstart",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "compositionupdate",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "beforeinput",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "input",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "compositionupdate",
+            "composing": false,
+            "trusted": true
+          },
+          {
+            "type": "beforeinput",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "input",
+            "composing": true,
+            "trusted": true
+          },
+          {
+            "type": "compositionend",
+            "composing": false,
+            "trusted": false
+          }
+        ]
+      },
+      "limitations": [
+        "CDP-generated browser events; not a physical OS IME test",
+        "loopback local candidate; not a release"
+      ],
+      "multiline": "日本語\n二行目"
+    }
+  },
+  "additionalChecks": [
+    "check-sheet-wasm.py: passed native/wasm model and mutant",
+    "check-grid-wasm.py: passed wasm and mutations",
+    "check-legacy-grid.py: passed synthetic parser and mutations",
+    "git diff --check"
+  ],
+  "notes": [
+    "v1 and v2 use byte-identical staged Kotoba source and Wasm; v2 changes startup protection in browser adapter",
+    "Cross-tab startup conflict and storage quota were deliberately injected",
+    "HX1 protects any raw CR or LF including provenance-only whitespace, conservatively",
+    "Older HS1/HU1 backup input is protected before commit",
+    "Single-host loopback and synthetic data only"
+  ],
+  "limitations": [
+    "No physical IME, actual user migration, public deployment or QEMU",
+    "Old data with CR that a visible textarea would normalize is refused",
+    "Unsupported legacy content and bounded 35000-byte state are refused"
+  ]
+}

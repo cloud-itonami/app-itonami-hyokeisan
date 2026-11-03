@@ -1,0 +1,53 @@
+{
+  "cid": "bafybeif6ojwpamqebsmrbhx2vcyw2ahh7ter42qw3ulnnbok7xwpwsntlm",
+  "files": {
+    "app.js": "5d0c729c9ca70596518621b56cc892c93413f322ab1fd4a45f33d6893aff09b1",
+    "build-receipt.json": "0b7d03f151ee6c495f74cec7b53823f28e9f8f0ab048922214660de1febc53c0",
+    "bundle.js": "867cb10cb00f1c53e4ef6d32ecacbef2482c8f1cbaa425dda92b7560a0ad46d5",
+    "client-runtime.json": "f0d6467244538d1809b48a6f022367a44ff7e29352d526262941e06130507f6c",
+    "index.html": "3340e542ebb054681f19e56cdca4bc32e6c10334c0327de95d2f9c27ffb70489",
+    "kotoba-client-runtime.js": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "program.kotoba": "dd712539f6bf5e5cfb5fe61c16e58f6f78238d3395e378b3e4db26c7bd64bdd2",
+    "program.wasm": "7cf8da6878e0651c715301940fd958e721a0f00058efd8979684ad867165eaec",
+    "style.css": "6e51a0790a939d51a05142b71c5f11ab8c83c210ea621c5cc7ef5b3a917cadd2",
+    "worker.js": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "testExit": 0,
+  "stdout": "PASS_WORKBOOK_LARGE 1024 cells, second sheet, edit, save and reload\n",
+  "stderr": "",
+  "route": "offline loopback, NoFetch, no swarm",
+  "build": {
+    "wasmSha256": "7cf8da6878e0651c715301940fd958e721a0f00058efd8979684ad867165eaec",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "dd712539f6bf5e5cfb5fe61c16e58f6f78238d3395e378b3e4db26c7bd64bdd2",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "date": "2026-11-02",
+  "source_head_before_evidence": "0b74657",
+  "kubo": "0.41.0",
+  "browser": "Chrome 156.0.8078.74",
+  "harnessSha256": "886e2f73c8d54b413603c9178f8608523bc10416a63ee41cd75ea73fa28e0410",
+  "importFlags": [
+    "recursive",
+    "cid-version=1",
+    "raw-leaves=true",
+    "chunker=size-262144",
+    "hash=sha2-256",
+    "pin=false"
+  ],
+  "checks": [
+    "all ten files fetched and byte-compared",
+    "two-sheet editing and reload, preserving other cells and provenance",
+    "1024-cell SUM displayed and snapshot unchanged",
+    "remote CID base refused before browser start",
+    "default loopback route regression passed"
+  ],
+  "limitations": [
+    "local offline CID is unpinned and not publicly available",
+    "synthetic data and Chrome only",
+    "not actual data migration, QEMU, fleet synchronization, external delivery or production release",
+    "previous natural hidden-tab Worker timeout remains unexplained"
+  ]
+}

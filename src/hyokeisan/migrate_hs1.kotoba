@@ -1,0 +1,35 @@
+(ns hyokeisan.migrate-hs1
+  (:export [hs1-to-workbook])
+  (:require [hyokeisan.sheet :as sheet]
+            [hyokeisan.workbook :as workbook]))
+
+;; Conversion is deliberately separate from persistence and UI. A caller must
+;; explicitly confirm an upgrade and preserve its old storage until commit.
+;; Keep the exact original HS1 as provenance, including all sixteen empty cells.
+(defn hs1-copy-cells [state :document raw :string i :i64] [:option :string]
+  (if (= i 16) (option-some-of [:option :string] raw)
+    (let [value (sheet/cell-text state i)
+          row (+ (quot i 4) 1) col (+ (rem i 4) 1)
+          next (workbook/wf-put raw "hs1-sheet-1" row col value)]
+      (if (option-some?-of [:option :string] next)
+        (hs1-copy-cells state (option-value-of [:option :string] next "") (+ i 1))
+        (option-none-of [:option :string])))))
+
+(defn hs1-prefix? [raw :string] :bool
+  (if (< (string-byte-length raw) 4) false
+    ;; Check each preceding ASCII byte before touching the next byte offset.
+    (if (not (= (string-code-point-at raw 0) 72)) false
+      (if (not (= (string-code-point-at raw 1) 83)) false
+        (if (not (= (string-code-point-at raw 2) 49)) false
+          (= (string-code-point-at raw 3) 124))))))
+
+(defn hs1-to-workbook [raw :string] [:option :string]
+  (if (not (hs1-prefix? raw)) (option-none-of [:option :string])
+  (let [state (sheet/snap-decode raw)]
+    (if (not (option-some?-of [:option :document] state)) (option-none-of [:option :string])
+      (let [book (workbook/wf-new "無題の表計算" raw)]
+        (if (not (option-some?-of [:option :string] book)) (option-none-of [:option :string])
+          (let [sheet (workbook/wf-add-sheet (option-value-of [:option :string] book "") "hs1-sheet-1" "Sheet1")]
+            (if (not (option-some?-of [:option :string] sheet)) (option-none-of [:option :string])
+              (hs1-copy-cells (option-value-of [:option :document] state (document-null))
+                (option-value-of [:option :string] sheet "") 0)))))))))

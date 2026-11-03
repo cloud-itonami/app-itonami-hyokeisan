@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <meta http-equiv="Content-Security-Policy" content="connect-src 'none'">
+  <title>itonami Hyokeisan</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <p id="status" role="status" aria-live="polite">読み込み中…</p>
+  <p id="draft-notice" role="status" hidden></p>
+  <section id="draft-recovery" aria-labelledby="draft-heading" hidden>
+    <h2 id="draft-heading">前回の未保存入力</h2>
+    <p id="draft-message"></p>
+    <pre id="draft-preview"></pre>
+    <button id="draft-retry-read" type="button" hidden>未保存データの確認を再試行</button>
+    <button id="draft-restore" type="button" disabled>入力を画面に戻す</button>
+    <button id="draft-download" type="button">未保存データを書き出す</button>
+    <button id="draft-discard" type="button">未保存データを破棄</button>
+  </section>
+  <button id="retry-save" type="button" hidden>未保存の入力を再保存</button>
+  <div id="app"></div>
+  <section aria-labelledby="legacy-heading">
+    <h2 id="legacy-heading">旧表計算データの読み込み</h2>
+    <p>同じ表計算の旧シート一覧とグリッドの JSON ファイルを選んでください。ファイルが同じ版から取得されたことは、この画面では確認できません。</p>
+    <label>表計算の名前 <input id="legacy-title" type="text" maxlength="1024"></label>
+    <label>シート一覧 JSON <input id="legacy-sheets" type="file" accept=".json,application/json"></label>
+    <label>グリッド JSON <input id="legacy-grid" type="file" accept=".json,application/json"></label>
+    <button id="legacy-preview" type="button">読み込み内容を確認</button>
+    <p>または、旧ストアの pull 応答を保存した JSON を選択できます。出所、権限による欠落、取得時点の完全性は自動確認できません。</p>
+    <label>旧 pull 応答 JSON <input id="legacy-pull" type="file" accept=".json,application/json"></label>
+    <button id="legacy-pull-preview" type="button">pull 応答の内容を確認</button>
+  </section>
+  <input id="backup-file" type="file" accept=".hs1,.hu1,.hx1,application/octet-stream" hidden>
+  <dialog id="backup-dialog" aria-labelledby="backup-heading">
+    <h2 id="backup-heading">復元内容の確認</h2>
+    <p id="backup-label"></p>
+    <p>現在の表計算は、このブラウザに読み込み前のバックアップとして保存されます。</p>
+    <div id="backup-preview" inert></div>
+    <button id="backup-cancel" type="button">キャンセル</button>
+    <button id="backup-confirm" type="button">この内容を復元</button>
+  </dialog>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

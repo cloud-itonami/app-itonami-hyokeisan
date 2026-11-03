@@ -1,0 +1,92 @@
+{
+  "date": "2026-11-03",
+  "scope": "synthetic native and Chrome Wasm; not full spreadsheet compatibility",
+  "appSourceHeadBeforeChanges": "bd4e67a57e693314aa4b4813d7ac5f7fc5ce2e6e",
+  "sourceSha256": {
+    "src/hyokeisan/sheet.kotoba": "246083e0050646c87786380360babf457dc3defd2fb89e95ca09cc884cbbd2e1",
+    "src/hyokeisan/workbook_formula.kotoba": "e245c97103cc5a86159b05e027db29758b766f30c7ea400d6f160f31a6639017",
+    "src/hyokeisan/workbook_ui.kotoba": "8c35d1898f2c725a0bea8d9465a9eedf0207b24284e85d418714fc39ad846ab6",
+    "scripts/check-sheet-wasm.py": "09fa651dbb70ef8a85be46a64cabc26dc9347864eb9031b79728a014b20a5ad9",
+    "scripts/check-workbook-formula.py": "953c2dea2449f842ad3419c208e2f5a8aae2ab6c14d1e1d4cfaf6afb356ffe59",
+    "scripts/check-browser-ui.py": "a882d4d42529fd08272beb1d495f3059badd22c024cc781f4895440042873e1e",
+    "scripts/check-workbook-browser.py": "23aa47aa32fd2786e53c1007d61bb5b5c8b0d3c2dd4cd13355da07d5a0ca50f9"
+  },
+  "build": {
+    "wasmSha256": "05039b000e7ebcb0802c3a688d9de6d17f94902a996d7fb2a6bfe4d586f22492",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "638e0857cf4c94d672aefeca6457702e57bcce518efc026bc543ca6b964ec9d5",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "sheetReceipt": {
+    "sourceSha256": "246083e0050646c87786380360babf457dc3defd2fb89e95ca09cc884cbbd2e1",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "results": {
+      "sheet": {
+        "result": 0,
+        "wasmSha256": "92b75f7465df9c2e16389a1202fafa845d044e07f631d6c2500b115c40aa9d9e"
+      },
+      "mutant": {
+        "result": 1,
+        "wasmSha256": "187113a7e9f2966304ee5cf97c1e12d6b90c57ffb2b814dd50728d86ff110993"
+      },
+      "sub-mutant": {
+        "result": 1,
+        "wasmSha256": "5af7cf0c742ffe5b5b5b1a729efaba30dacf3d1601d9388d289b5e0eb016caac"
+      },
+      "mul-mutant": {
+        "result": 1,
+        "wasmSha256": "47069ff7bc292613c85e42f32b55d7769554ea3cb6ca8a160d688cb588383c71"
+      },
+      "sum-text-mutant": {
+        "result": 1,
+        "wasmSha256": "80e73eb6eebcdf890a7a0987a6cca612e625b5cec4223cac4ce2bdce882bf50d"
+      }
+    }
+  },
+  "workbookReceipt": {
+    "sourceSha256": "2b4ed491fc313798396907767d84660a72c8cf1993e79a4930bae37e161cc447",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "browser": {
+      "product": "Chrome/156.0.8078.74",
+      "protocol": "1.3"
+    },
+    "results": {
+      "formula": {
+        "report": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24306714}}",
+        "wasmSha256": "4ee9656295fd61e3511174b1c500a131882e306fd8354b47879985421af543e8"
+      },
+      "column-mutant": {
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24368389}}",
+        "wasmSha256": "82b204bbb985cfc842ea3555ec0ffcc9c50db030c2360ac0e5f8434d6089469d"
+      },
+      "sum-text-mutant": {
+        "report": "{:status :ok :result 1 :fuel {:initial 25000000 :remaining 24334567}}",
+        "wasmSha256": "b75dca62545e4c1344fedc2889152bba043c3179416462b8f1f5ec1aabf0da54"
+      },
+      "sum-1024": {
+        "report": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24944754}}",
+        "wasmSha256": "481aeab22bdde0c490eedbaf086506e19d8346422ec8f0b70dcc2827b75c499e"
+      }
+    },
+    "limitations": [
+      "synthetic data",
+      "bounded formula subset",
+      "no QEMU or release"
+    ]
+  },
+  "browserChecks": [
+    "HS1 and HU1 SUM ignore ordinary text",
+    "arithmetic with text, literal error and formula error still refuse",
+    "unsupported decimal in SUM refuses rather than disappearing",
+    "save/reload, backup, stale tab and rollback",
+    "synthetic legacy import, preview and bounded formula inventory"
+  ],
+  "limitations": [
+    "integer and one-operator grammar remains bounded; general division and decimal arithmetic unavailable",
+    "numeric-looking unsupported literals are conservatively refused even where a full spreadsheet might treat them as text",
+    "all errors display #ERROR, not the original distinct error codes",
+    "synthetic data only; no real migration, QEMU or public release"
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "date": "2026-11-03",
+  "scope": "Synthetic loopback Chrome and Amu selfhost candidate only; no actual user migration, QEMU or release.",
+  "before": {
+    "result": "FAIL_EXPECTED",
+    "observation": "same-tab input during formula audit allowed stale preview to open",
+    "appJsSha256": "4b46806e52c111d52499c4202e1f6b3001980ee75244497de29ff1e54a896ae1",
+    "build": {
+      "wasmSha256": "ab04244066fec7ebbc39c96e97f2545d6ece33923876baf36f8ff2f157f64f79",
+      "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+      "sourceSha256": "746866e79cb0c88d4ae8fa9659390e0370973a9e1160f4ee1b0fdc35362af76f",
+      "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+      "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+      "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+    }
+  },
+  "after": {
+    "appJsSha256": "50e2685c9d3614e041c892bded7e211574b17621f43e10421c0c96125986e9e4",
+    "build": {
+      "wasmSha256": "ab04244066fec7ebbc39c96e97f2545d6ece33923876baf36f8ff2f157f64f79",
+      "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+      "sourceSha256": "746866e79cb0c88d4ae8fa9659390e0370973a9e1160f4ee1b0fdc35362af76f",
+      "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+      "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+      "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+    },
+    "legacy": {
+      "status": "PASS",
+      "scope": "synthetic local Chrome",
+      "checks": [
+        "mismatched sheet and pull identity refusal",
+        "two-file and pull preview/cancel",
+        "backup and primary write failure",
+        "stale storage refusal",
+        "byte-exact import and pull provenance",
+        "1024-column import",
+        "1600-column near-limit pull",
+        "1700-column over-limit refusal",
+        "second sheet and reload",
+        "local requests only"
+      ],
+      "nearLimitBytes": 34518,
+      "limitations": [
+        "no verified old export, authorization, completeness or revision",
+        "no real user migration",
+        "no QEMU or publication"
+      ]
+    },
+    "workbook": {
+      "status": "PASS",
+      "checks": [
+        "HS1 preview/cancel",
+        "backup and explicit upgrade",
+        "backup and primary failures",
+        "stale upgrade refusal",
+        "multiple sheets",
+        "offscreen cells",
+        "cross-page formula, division and SUM",
+        "cycle refusal",
+        "save/reload",
+        "stale workbook tab",
+        "HU1 export",
+        "HU1 import preview/cancel/confirm and malformed refusal",
+        "old-app refusal",
+        "prior HS1 restore",
+        "prior workbook recovery",
+        "loopback only"
+      ],
+      "limitations": [
+        "synthetic fixtures",
+        "no old-origin export",
+        "no real migration",
+        "formula subset",
+        "no QEMU or release qualification"
+      ]
+    },
+    "ui": {
+      "status": "PASS",
+      "checks": [
+        "backup-export-import-cancel-restore",
+        "backup-invalid-both-write-failures-conflict",
+        "grid",
+        "addition",
+        "subtraction-multiplication-division-reload",
+        "unicode-formula-save-reload",
+        "sum",
+        "recalculate",
+        "cycle",
+        "save-reload",
+        "synthetic-composition-with-concurrent-redraw",
+        "oversized-refusal",
+        "concurrent-tab-refusal",
+        "worker-timeout-retry",
+        "hidden-timeout-retry",
+        "worker-interruption-retry",
+        "storage-failure-retry",
+        "multiple-unsaved-fields",
+        "corrupt-refusal",
+        "future-HW3-refusal",
+        "digest-refusal",
+        "loopback-only"
+      ]
+    },
+    "additionalAssertion": "input captured during delayed formula audit prevents preview and is subsequently saved"
+  }
+}

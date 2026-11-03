@@ -1,0 +1,48 @@
+(ns hyokeisan.formula-audit
+  (:export [formula-audit])
+  (:require [hyokeisan.sheet :as sheet]
+            [hyokeisan.workbook :as workbook]
+            [hyokeisan.workbook-ui :as ui]))
+
+;; Inventory formula locations, not their correctness or old cached values.
+;; Every cell is counted; at most the first 20 locations and 16 KiB are emitted.
+(defn fa-cells [raw :string id :string title :string pos :i64 count :i64 shown :i64 entries :string] :document
+  (loop [at pos count count shown shown entries entries]
+    (if (= at (string-byte-length raw))
+      (document-map :count (document-i64 count) :shown (document-i64 shown) :entries (document-string entries))
+      (let [rf (workbook/wf-read raw at) cf (workbook/wf-read raw (workbook/wf-end rf))
+            vf (workbook/wf-read raw (workbook/wf-end cf))
+            begin (workbook/wf-start vf) end (workbook/wf-end vf)
+            is-formula (and (< begin end) (= (string-code-point-at raw begin) 61))
+            entry (if (and is-formula (= count shown) (< shown 20))
+              (let [row (workbook/wf-number-frame raw rf 1048576)
+                    col (workbook/wf-number-frame raw cf 16384)
+                    address (string-concat (ui/ui-col-name col) (string-from-i64 row))]
+                (string-concat (workbook/wf-frame id)
+                  (string-concat (workbook/wf-frame title) (workbook/wf-frame address)))) "")
+            include (and (> (string-byte-length entry) 0) (<= (+ (string-byte-length entries) (string-byte-length entry)) 16000))]
+        (recur end (if is-formula (+ count 1) count) (if include (+ shown 1) shown)
+               (if include (string-concat entries entry) entries))))))
+(defn fa-sheets [book :string pos :i64 count :i64 shown :i64 entries :string] :document
+  (loop [at pos count count shown shown entries entries]
+    (if (= at (string-byte-length book))
+      (document-map :count (document-i64 count) :shown (document-i64 shown) :entries (document-string entries))
+      (let [f (workbook/wf-read book at) raw (workbook/wf-text book f)
+            idf (workbook/wf-read raw 0) titlef (workbook/wf-read raw (workbook/wf-end idf))
+            result (fa-cells raw (workbook/wf-text raw idf) (workbook/wf-text raw titlef)
+                             (workbook/wf-end titlef) count shown entries)]
+        (recur (workbook/wf-end f) (ui/ui-int (sheet/dget result :count))
+               (ui/ui-int (sheet/dget result :shown))
+               (sheet/dstr (sheet/dget result :entries)))))))
+(defn formula-audit [state :string] [:option :string]
+  (let [parsed (ui/ui-read state)]
+    (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :string])
+      (let [p (option-value-of [:option :document] parsed (document-null))
+            book (sheet/dstr (sheet/dget p :book))
+            result (fa-sheets book (workbook/wf-sheet-start book) 0 0 "")
+            count (ui/ui-int (sheet/dget result :count)) shown (ui/ui-int (sheet/dget result :shown))
+            entries (sheet/dstr (sheet/dget result :entries))
+            out (string-concat "FA1|" (string-concat (workbook/wf-frame (string-from-i64 count))
+                  (string-concat (workbook/wf-frame (string-from-i64 shown)) entries)))]
+        (if (<= (string-byte-length out) 35000) (option-some-of [:option :string] out)
+          (option-none-of [:option :string]))))))

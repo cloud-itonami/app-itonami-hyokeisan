@@ -1,0 +1,89 @@
+(ns hyokeisan.legacy-pull
+  (:export [legacy-pull-candidate legacy-pull-info])
+  (:require [hyokeisan.json-string :as js]
+            [hyokeisan.json-parse :as json]
+            [hyokeisan.legacy-metadata :as metadata]
+            [hyokeisan.legacy-workbook :as legacy]
+            [hyokeisan.workbook :as workbook]
+            [hyokeisan.workbook-ui :as ui]))
+
+;; Offline candidate from a caller-selected, patternless Kotobase pull response.
+;; Format validation is not proof of endpoint, complete authorization, source
+;; authenticity, basis, or revision. Preserve the entire input as provenance.
+(defn lp-field-string [object :string name :string] [:option :string]
+  (let [v (json/json-object-field object name)]
+    (if (option-some?-of [:option :string] v)
+      (js/json-unquote (option-value-of [:option :string] v ""))
+      (option-none-of [:option :string]))))
+;; Scalar attributes must contain exactly one JSON string carrying EDN.
+(defn lp-attribute [attrs :string name :string] [:option :string]
+  (let [v (json/json-object-field attrs name)]
+    (if (not (option-some?-of [:option :string] v)) (option-none-of [:option :string])
+      (let [items (json/json-array-tokens (option-value-of [:option :string] v ""))]
+        (if (or (not (option-some?-of [:option :document] items))
+                (not (= (document-count (option-value-of [:option :document] items (document-vector))) 1)))
+          (option-none-of [:option :string])
+          (let [token (option-value-of [:option :document]
+                        (document-vector-at (option-value-of [:option :document] items (document-vector)) 0) (document-null))]
+            (js/json-unquote (option-value-of [:option :string] (document-string-value token) ""))))))))
+(defn lp-attribute-text [attrs :string name :string] [:option :string]
+  (let [edn (lp-attribute attrs name)]
+    (if (option-some?-of [:option :string] edn)
+      (js/json-unquote (option-value-of [:option :string] edn ""))
+      (option-none-of [:option :string]))))
+;; Display metadata only; this does not authenticate the supplied response.
+(defn legacy-pull-info [raw :string] [:option :string]
+  (let [graph (lp-field-string raw "graph") entity (lp-field-string raw "entity")
+        attrs (json/json-object-field raw "attrs")]
+    (if (or (not (option-some?-of [:option :string] graph))
+            (not (option-some?-of [:option :string] entity))
+            (not (option-some?-of [:option :string] attrs))) (option-none-of [:option :string])
+      (let [g (option-value-of [:option :string] graph "") e (option-value-of [:option :string] entity "")
+            rev (lp-attribute (option-value-of [:option :string] attrs "") ":sheet/revision")]
+        (if (or (= (string-byte-length g) 0) (> (string-byte-length g) 1024)
+                (= (string-byte-length e) 0) (> (string-byte-length e) 1024)
+                (not (option-some?-of [:option :string] rev))
+                (not (metadata/lm-digit-id? (option-value-of [:option :string] rev ""))))
+          (option-none-of [:option :string])
+          (option-some-of [:option :string] (string-concat "LP1|" (string-concat (workbook/wf-frame g)
+            (string-concat (workbook/wf-frame e) (workbook/wf-frame (option-value-of [:option :string] rev "")))))))))))
+(defn lp-preserve [state :string raw :string] [:option :string]
+  (let [parsed (ui/ui-read state)]
+    (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :string])
+      (let [d (option-value-of [:option :document] parsed (document-null))
+            book (dstr (dget d :book)) id (dstr (dget d :id))
+            title (workbook/wf-read book 4)
+            source (string-concat "LE2|" (workbook/wf-frame raw))
+            rebuilt (string-concat "HW3|" (string-concat (workbook/wf-frame (workbook/wf-text book title))
+                      (string-concat (workbook/wf-frame source)
+                        (string-substring book (workbook/wf-sheet-start book) (string-byte-length book)))))]
+        (ui/ui-wrap rebuilt id 1 1)))))
+(defn legacy-pull-candidate [raw :string] [:option :string]
+  (let [valid (json/json-parse raw) ok (json/json-object-field raw "ok")
+        graph (lp-field-string raw "graph") entity (lp-field-string raw "entity") attrs (json/json-object-field raw "attrs")]
+    (if (or (not (option-some?-of [:option :string] valid)) (not (option-some?-of [:option :string] ok))
+            (not (string=? (option-value-of [:option :string] ok "") "true"))
+            (not (option-some?-of [:option :string] graph)) (not (option-some?-of [:option :string] entity))
+            (not (option-some?-of [:option :string] attrs))) (option-none-of [:option :string])
+      (let [g (option-value-of [:option :string] graph "") e (option-value-of [:option :string] entity "")
+            a (option-value-of [:option :string] attrs "") kind (lp-attribute-text a ":sheet/type")
+            id (lp-attribute-text a ":sheet/id") slug (lp-attribute-text a ":sheet/slug")
+            title (lp-attribute-text a ":sheet/title") sheets (lp-attribute-text a ":sheet/sheetsJson")
+            grid (lp-attribute-text a ":sheet/gridJson") revision (lp-attribute a ":sheet/revision")]
+        (if (or (= (string-byte-length g) 0) (> (string-byte-length g) 1024)
+                (not (option-some?-of [:option :string] kind)) (not (option-some?-of [:option :string] id))
+                (not (option-some?-of [:option :string] slug)) (not (option-some?-of [:option :string] title))
+                (not (option-some?-of [:option :string] sheets)) (not (option-some?-of [:option :string] grid))
+                (not (option-some?-of [:option :string] revision))) (option-none-of [:option :string])
+          (let [name (option-value-of [:option :string] slug "")]
+            (if (or (= (string-byte-length name) 0)
+                    (not (string=? (option-value-of [:option :string] kind "") "Spreadsheet"))
+                    (not (string=? e (option-value-of [:option :string] id "")))
+                    (not (string=? e (string-concat "sheet:book:" name)))
+                    (not (metadata/lm-digit-id? (option-value-of [:option :string] revision ""))))
+              (option-none-of [:option :string])
+              (let [converted (legacy/legacy-workbook-candidate (option-value-of [:option :string] title "")
+                                (option-value-of [:option :string] sheets "") (option-value-of [:option :string] grid ""))]
+                (if (option-some?-of [:option :string] converted)
+                  (lp-preserve (option-value-of [:option :string] converted "") raw)
+                  (option-none-of [:option :string]))))))))))

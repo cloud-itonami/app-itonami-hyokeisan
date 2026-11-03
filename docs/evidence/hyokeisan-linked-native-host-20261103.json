@@ -1,0 +1,163 @@
+{
+  "status": "PASS_HYOKEISAN_LINKED_HOST",
+  "compilerSHA256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+  "host": [
+    "Darwin",
+    "arm64"
+  ],
+  "packagerSHA256": "e95284408f091c8979ef74ece57116a4df2250e61e42074da5dc95ca30264142",
+  "resultBits": 8,
+  "artifacts": {
+    "host": {
+      "unsignedSHA256": "d8046593bc73a8f42e167bd629dbb5708489637a8bf509c1998606472471a0fb",
+      "lockSHA256": "dcc2be2345c4b5dffd7e40af971baf2cf5c6b48903f29e5ff447a6dea36f5d70",
+      "sources": {
+        "hyokeisan/sheet.kotoba": "3a466317f0daf0da2b42863db5b601e01adffce7faad356212c5a371167fee50",
+        "hyokeisan/native_workbook_host.kotoba": "cbb869e41169a1e9fcc094c7de39be04267a6d0bf25631a25f4f20b56f2068d2"
+      }
+    },
+    "mutant": {
+      "unsignedSHA256": "529657571cdc2692bfc748b73ce8df5bc2b9e3fa489454be755c7097798d501f",
+      "lockSHA256": "ff68b8838a270536e58720ff9edac250d014a617743017668a09b6589436a983",
+      "sources": {
+        "hyokeisan/sheet.kotoba": "0a765996e7f5d8d9f3d3c74a32539ca224edfa5c9568b4b6ecfca59b4e3ede42",
+        "hyokeisan/native_workbook_host.kotoba": "cbb869e41169a1e9fcc094c7de39be04267a6d0bf25631a25f4f20b56f2068d2"
+      }
+    },
+    "refusal-mutant": {
+      "unsignedSHA256": "aa2ae1d80f7eabbf07d9f84eeacec471e6541a5f6f6c6456108bd31186657a7b",
+      "lockSHA256": "b5cd3e00feb73a29b89357de18372a0a19ff4c7eb02b4bfb6cd2276b8bcd0321",
+      "sources": {
+        "hyokeisan/sheet.kotoba": "28eb55221e8b87ecf0383847834c8fc5366ca36bb8437c2e9b6afbd3f9fe876a",
+        "hyokeisan/native_workbook_host.kotoba": "cbb869e41169a1e9fcc094c7de39be04267a6d0bf25631a25f4f20b56f2068d2"
+      }
+    }
+  },
+  "observations": [
+    {
+      "name": "host-check",
+      "exit": 0,
+      "seconds": 0.835,
+      "stdoutSHA256": "dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-compile",
+      "exit": 0,
+      "seconds": 0.841,
+      "stdoutSHA256": "27ed639810d93ba78ab9e3a3c4ca6e307680a007c87c6928879305639b8b9952",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-extract",
+      "exit": 0,
+      "seconds": 0.008,
+      "stdoutSHA256": "99e648ba93d55179583556821eab794c1c1fc664b80effba3fa36ae767eadd13",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-package",
+      "exit": 0,
+      "seconds": 0.009,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "linked-model",
+      "exit": 0,
+      "seconds": 0.466,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "mutant-check",
+      "exit": 0,
+      "seconds": 0.833,
+      "stdoutSHA256": "dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "mutant-compile",
+      "exit": 0,
+      "seconds": 0.841,
+      "stdoutSHA256": "4a4ae6d04f88cff40ca142700a074a4745de2fdf1cbae0ad108e9929dc74127c",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "mutant-extract",
+      "exit": 0,
+      "seconds": 0.009,
+      "stdoutSHA256": "3c992c3437effacd8fab13693298a9a347f98d8c9fbddbdab41f244f740651c3",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "mutant-package",
+      "exit": 0,
+      "seconds": 0.01,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "mutation-detected",
+      "exit": 1,
+      "seconds": 0.465,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "refusal-mutant-check",
+      "exit": 0,
+      "seconds": 0.839,
+      "stdoutSHA256": "dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "refusal-mutant-compile",
+      "exit": 0,
+      "seconds": 0.847,
+      "stdoutSHA256": "078bcb5a25dbfaf616b473ad638172f3a838a1614abf7298899211f4c6578c78",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "refusal-mutant-extract",
+      "exit": 0,
+      "seconds": 0.019,
+      "stdoutSHA256": "e4857216431dd0f3b677a6ea93806fbdf1157c6ed88b663e12c499358a0324c2",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "refusal-mutant-package",
+      "exit": 0,
+      "seconds": 0.021,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "refusal-detected",
+      "exit": 1,
+      "seconds": 0.394,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "publicTestKeysOnly": true,
+  "observerSHA256": "f9052f0fed4318d204487515622984334762f71d1476ad1c0217af51feda8481",
+  "stagerSHA256": "2aa1c94b32da6ee8886917a177e15eb86dffa844a9ae051cf95a71d5e0c2fcb7",
+  "browserStagerSHA256": "a33b0aec1198e3cb0b7c9069296abbbbbcdf3e1b9ffb6acf9aec4b2e63c153be",
+  "nativeGateSHA256": "84dea6644db292aaede4d93c39f326cdf41b83ad7482632c969dd6cae9bf9e37",
+  "browserBuild": {
+    "wasmSha256": "ab04244066fec7ebbc39c96e97f2545d6ece33923876baf36f8ff2f157f64f79",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "746866e79cb0c88d4ae8fa9659390e0370973a9e1160f4ee1b0fdc35362af76f",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab"
+  },
+  "hostSourceSha256": "3a466317f0daf0da2b42863db5b601e01adffce7faad356212c5a371167fee50",
+  "scope": "macOS Arm native synthetic data; no Itonami OS GUI, QEMU, durable storage or release",
+  "limitations": [
+    "macOS Arm synthetic native host only; no Itonami OS GUI, QEMU, durable filesystem or release.",
+    "Host build adjusts only the export declaration of the browser-staged unit; no real-user workbook was accessed."
+  ],
+  "developmentNote": "The initial test host dereferenced a refused view and trapped under a transition mutant; the fixture now checks the option first and both refusal and no-op mutants fail normally."
+}

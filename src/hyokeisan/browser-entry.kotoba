@@ -1,0 +1,128 @@
+;; App-owned browser program entry. The build stages this alongside the editor
+;; definitions and exports this `main`; browser state remains local to the host.
+;; argv: init | step SNAPSHOT TARGET KIND VALUE. A successful run writes one
+;; versioned snapshot. Refusals write no snapshot and keep the host's prior one.
+(defn browser-arg [i :string] :string
+  (typed-cap-call :cli/args :string :string i))
+
+;; HX1 protects multiline snapshots against the older single-line editor.
+;; The discriminator preserves the original HS1 or HU1 payload unchanged.
+(defn browser-hx? [s :string] :bool
+  (and (>= (string-byte-length s) 4) (= (string-code-point-at s 0) 72)
+       (= (string-code-point-at s 1) 88) (= (string-code-point-at s 2) 49)
+       (= (string-code-point-at s 3) 124)))
+(defn browser-unpack [s :string] [:option :string]
+  (if (not (browser-hx? s)) (option-some-of [:option :string] s)
+    (if (< (string-byte-length s) 5) (option-none-of [:option :string])
+      (let [kind (string-code-point-at s 4)]
+        (if (or (= kind 49) (= kind 50))
+          (option-some-of [:option :string] (string-concat (if (= kind 49) "HS1|" "HU1|") (string-substring s 5 (string-byte-length s))))
+          (option-none-of [:option :string]))))))
+(defn browser-wrap [encoded [:option :string]] [:option :string]
+  (if (not (option-some?-of [:option :string] encoded)) (option-none-of [:option :string])
+    (let [raw (option-value-of [:option :string] encoded "")
+          multiline (or (>= (string-index-of raw "\n") 0) (>= (string-index-of raw "\r") 0))
+          result (if multiline
+                   (string-concat (if (ui-prefix? raw) "HX1|2" "HX1|1") (string-substring raw 4 (string-byte-length raw))) raw)]
+      (if (> (string-byte-length result) 35000) (option-none-of [:option :string])
+        (option-some-of [:option :string] result)))))
+(defn browser-protect [raw :string] [:option :string]
+  (let [unpacked (browser-unpack raw)]
+    (if (not (option-some?-of [:option :string] unpacked)) (option-none-of [:option :string])
+      (let [v (option-value-of [:option :string] unpacked "")]
+        (if (if (ui-prefix? v) (option-some?-of [:option :document] (ui-read v))
+              (option-some?-of [:option :document] (snap-decode v)))
+          (browser-wrap (option-some-of [:option :string] v)) (option-none-of [:option :string]))))))
+
+(defn browser-emit [s :document] :i64
+  (let [encoded (browser-wrap (snap-encode s))]
+    (if (option-some?-of [:option :string] encoded)
+      (let [out (typed-cap-call :io/write :string :string
+                  (string-concat (option-value-of [:option :string] encoded "") "\n"))] 0)
+      2)))
+(defn browser-emit-wire [encoded [:option :string]] :i64
+  (if (option-some?-of [:option :string] encoded)
+    (let [out (typed-cap-call :io/write :string :string
+                (string-concat (option-value-of [:option :string] encoded "") "\n"))] 0)
+    2))
+
+(defn browser-emit-state [encoded [:option :string]] :i64
+  (browser-emit-wire (browser-wrap encoded)))
+
+;; Encode the editor's declarative view, not browser objects. Every node is
+;; tag, class, type, data-k, value, text, accessible label and child count, followed by children.
+;; The host only validates this bounded wire value and renders its nodes.
+(defn browser-view-children [v :document i :i64 n :i64 acc :string] :string
+  (if (= i n) acc
+    (browser-view-children v (+ i 1) n (browser-view-node (dat v i) acc))))
+
+(defn browser-view-node [node :document acc :string] :string
+  (let [attrs (dget node :attrs) children (dget node :children)
+        n (if (vector? children) (document-count children) 0)
+        fields (string-concat (snap-frame (dstr (dget node :tag)))
+                 (string-concat (snap-frame (dstr (dget attrs :class)))
+                  (string-concat (snap-frame (dstr (dget attrs :type)))
+                   (string-concat (snap-frame (dstr (dget attrs :data-k)))
+                    (string-concat (snap-frame (dstr (dget attrs :value)))
+                     (string-concat (snap-frame (dstr (dget node :text)))
+                      (string-concat (snap-frame (dstr (dget attrs :aria-label)))
+                                     (snap-frame (string-from-i64 n)))))))))]
+    (browser-view-children children 0 n (string-concat acc fields))))
+
+(defn browser-render [raw :string] :i64
+  (if (> (string-byte-length raw) 35000) 3
+    (let [unpacked (browser-unpack raw)]
+      (if (not (option-some?-of [:option :string] unpacked)) 3
+        (let [state (option-value-of [:option :string] unpacked "")
+              tree (if (ui-prefix? state) (ui-view state)
+                     (let [decoded (snap-decode state)]
+                       (if (option-some?-of [:option :document] decoded)
+                         (option-some-of [:option :document] (view (option-value-of [:option :document] decoded (init))))
+                         (option-none-of [:option :document]))))]
+          (if (option-some?-of [:option :document] tree)
+            (let [result (browser-view-node (option-value-of [:option :document] tree (document-null)) "BV2|")
+                  out (typed-cap-call :io/write :string :string (string-concat result "\n"))] 0)
+            3))))))
+
+(defn main [] :i64
+  (let [argc (browser-arg "") op (browser-arg "0")]
+    (cond
+      (and (string=? argc "1") (string=? op "init")) (browser-emit (init))
+      (and (string=? argc "2") (string=? op "view")) (browser-render (browser-arg "1"))
+      (and (string=? argc "2") (string=? op "upgrade"))
+        (let [u (browser-unpack (browser-arg "1"))]
+          (if (option-some?-of [:option :string] u) (browser-emit-state (ui-from-hs1 (option-value-of [:option :string] u ""))) 3))
+      (and (string=? argc "2") (string=? op "protect")) (browser-emit-wire (browser-protect (browser-arg "1")))
+      (and (string=? argc "2") (string=? op "formula-audit"))
+        (let [u (browser-unpack (browser-arg "1"))]
+          (if (option-some?-of [:option :string] u) (browser-emit-wire (formula-audit (option-value-of [:option :string] u ""))) 3))
+      (and (string=? argc "4") (string=? op "legacy"))
+        (browser-emit-state (legacy-workbook-candidate (browser-arg "1") (browser-arg "2") (browser-arg "3")))
+      (and (string=? argc "2") (string=? op "legacy-pull"))
+        (browser-emit-state (legacy-pull-candidate (browser-arg "1")))
+      (and (string=? argc "2") (string=? op "legacy-pull-info"))
+        (browser-emit-wire (legacy-pull-info (browser-arg "1")))
+      (and (string=? argc "3") (string=? op "legacy-source"))
+        (let [raw (browser-arg "1") unpacked (if (> (string-byte-length raw) 35000)
+                        (option-none-of [:option :string]) (browser-unpack raw))
+              parsed (if (option-some?-of [:option :string] unpacked)
+                       (ui-read (option-value-of [:option :string] unpacked "")) (option-none-of [:option :document]))]
+          (if (option-some?-of [:option :document] parsed)
+            (browser-emit-wire (ui-legacy-part (dstr (dget (option-value-of [:option :document] parsed (document-null)) :book)) (browser-arg "2")))
+            3))
+      (and (string=? argc "5") (string=? op "step"))
+        (let [raw (browser-arg "1") target (browser-arg "2")
+              kind (browser-arg "3") value (browser-arg "4")]
+          (if (or (> (string-byte-length raw) 35000) (> (string-byte-length target) 128)
+                  (> (string-byte-length value) 128)
+                  (not (or (string=? kind "click") (string=? kind "input"))))
+            3
+            (let [unpacked (browser-unpack raw)]
+              (if (not (option-some?-of [:option :string] unpacked)) 3
+                (let [state (option-value-of [:option :string] unpacked "")]
+                  (if (ui-prefix? state) (browser-emit-state (ui-step state target kind value))
+                    (let [decoded (snap-decode state)]
+                      (if (option-some?-of [:option :document] decoded)
+                        (browser-emit (step (option-value-of [:option :document] decoded (init)) target kind value))
+                        3))))))))
+      :else 4)))
