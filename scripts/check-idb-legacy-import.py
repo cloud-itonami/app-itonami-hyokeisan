@@ -194,13 +194,30 @@ try:
  ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
  wait("document.getElementById('status').textContent.includes('旧 pull 応答を読み込めません')",'malformed long pull refused')
  if ev("document.getElementById('backup-dialog').open") or record('current')!=before:raise ValueError('malformed long pull changed saved data')
+ # Both legacy entry points must preserve all 1,024 columns and their originals.
+ ev("document.getElementById('legacy-title').value='Wide'")
+ choose('#legacy-sheets',files['wide-meta']);choose('#legacy-grid',files['wide-grid']);preview()
+ if record('current')!=before:raise ValueError('wide two-file preview changed saved data')
+ ev("document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent.includes('復元しました')",'wide two-file import')
+ if stored()!=wide_expected:raise ValueError('wide two-file import lost cells or source')
+ for part,value in [('title','Wide'),('sheets',wide_meta),('grid',wide_grid)]:export_source(part,value)
+ wide_record=record('current')
+ choose('#legacy-pull',files['wide-pull']);ev("document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('backup-dialog').open",'wide pull preview')
+ if record('current')!=wide_record:raise ValueError('wide pull preview changed saved data')
+ ev("document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent.includes('復元しました')",'wide pull import')
+ if stored()!=wide_pull_expected:raise ValueError('wide pull import lost cells or source')
+ export_source('pull',wide_pull)
+ before=record('current')
  choose('#legacy-pull',files['near-pull'])
  ev("document.getElementById('status').textContent='';document.getElementById('legacy-pull-preview').click()")
  wait("document.getElementById('backup-dialog').open || document.getElementById('status').textContent.includes('読み込めません')",'near-limit preview')
  if not ev("document.getElementById('backup-dialog').open"):
-  assert stored()==pull_expected
+  assert stored()==wide_pull_expected
   raise ValueError('near-limit candidate refused and prior state was preserved')
- assert stored()==pull_expected and ev("document.querySelector('#backup-preview [data-k=c0]')?.value")=='1'
+ assert stored()==wide_pull_expected and ev("document.querySelector('#backup-preview [data-k=c0]')?.value")=='1'
  ev("document.getElementById('backup-confirm').click()")
  wait("document.getElementById('status').textContent.includes('復元しました')",'near-limit commit')
  assert stored()==near_expected and record('backup:'+str(before['revision']).zfill(16))==before
@@ -245,7 +262,7 @@ try:
  pipe.call('Target.closeTarget',{'targetId':other_target})
  requests=[event['params']['request']['url'] for event in pipe.events if event.get('method')=='Network.requestWillBeSent']
  if not requests or any(not url.startswith(base) for url in requests):raise ValueError('unexpected network request')
- report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-and-cardinality-refusal','hostile-pull-text-only','near-limit-pull-restore-reload','over-limit-refusal','near-limit-edit-exact-offscreen-preserved','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
+ report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-and-cardinality-refusal','hostile-pull-text-only','1024-column-two-file-and-pull-imports','near-limit-pull-restore-reload','over-limit-refusal','near-limit-edit-exact-offscreen-preserved','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
  (out/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(report['status'])
 finally:
  pipe.close();server.shutdown();server.server_close()
