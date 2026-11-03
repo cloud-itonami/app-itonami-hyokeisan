@@ -84,5 +84,6 @@ jobs:
           chrome="$(command -v google-chrome)"
           test -n "$chrome"
           OFFICE_TEST_HTML_DELAY=0.25 python3 scripts/check-browser-idb-ui.py "$payload/amu" "$payload/build" "$RUNNER_TEMP/office-ui" "$chrome"
+          python3 scripts/check-browser-pending-unload.py "$payload/amu" "$payload/build" "$RUNNER_TEMP/office-unload" "$chrome" sheet-add
           python3 "$payload/shared/check-office-corrupt-recovery.py" "$payload/amu" "$payload/build" "$RUNNER_TEMP/office-corrupt" "$chrome" hyokeisan
           python3 scripts/check-idb-legacy-import.py "$payload/amu" "$payload/build" "$RUNNER_TEMP/office-extra" "$chrome"
