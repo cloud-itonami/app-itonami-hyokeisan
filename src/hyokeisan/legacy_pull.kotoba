@@ -67,11 +67,13 @@
       (let [g (option-value-of [:option :string] graph "") e (option-value-of [:option :string] entity "")
             a (option-value-of [:option :string] attrs "") kind (lp-attribute-text a ":sheet/type")
             id (lp-attribute-text a ":sheet/id") slug (lp-attribute-text a ":sheet/slug")
+            title-raw (json/json-object-field a ":sheet/title")
             title (lp-attribute-text a ":sheet/title") sheets (lp-attribute-text a ":sheet/sheetsJson")
             grid (lp-attribute-text a ":sheet/gridJson") revision (lp-attribute a ":sheet/revision")]
         (if (or (= (string-byte-length g) 0) (> (string-byte-length g) 1024)
                 (not (option-some?-of [:option :string] kind)) (not (option-some?-of [:option :string] id))
-                (not (option-some?-of [:option :string] slug)) (not (option-some?-of [:option :string] title))
+                (not (option-some?-of [:option :string] slug))
+                (and (option-some?-of [:option :string] title-raw) (not (option-some?-of [:option :string] title)))
                 (not (option-some?-of [:option :string] sheets)) (not (option-some?-of [:option :string] grid))
                 (not (option-some?-of [:option :string] revision))) (option-none-of [:option :string])
           (let [name (option-value-of [:option :string] slug "")]

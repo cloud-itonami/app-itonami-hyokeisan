@@ -27,6 +27,7 @@ attrs={':sheet/type':[edn('Spreadsheet')],':sheet/id':[edn('sheet:book:demo')],'
        ':sheet/gridJson':[edn(grid)],':sheet/unknown':[edn('保持')]}
 pull_obj={'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':attrs}
 pull=json.dumps(pull_obj,ensure_ascii=False,separators=(',',':'))+'\n'
+untitled_obj=json.loads(pull);untitled_obj['attrs'].pop(':sheet/title');untitled_pull=json.dumps(untitled_obj,ensure_ascii=False,separators=(',',':'))+'\n'
 bad_pull=json.loads(pull);bad_pull['entity']='sheet:book:other';bad_pull=json.dumps(bad_pull,ensure_ascii=False,separators=(',',':'))
 bad_empty=json.loads(pull);bad_empty['attrs'][':sheet/title']=[];bad_empty=json.dumps(bad_empty,ensure_ascii=False,separators=(',',':'))
 bad_extra=json.loads(pull);bad_extra['attrs'][':sheet/title']=[edn('予算'),'null'];bad_extra=json.dumps(bad_extra,ensure_ascii=False,separators=(',',':'))
@@ -53,7 +54,7 @@ valid_attrs=dict(wide_attrs);valid_attrs[':sheet/gridJson']=[edn(valid_grid)]
 invalid_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':invalid_attrs},ensure_ascii=False,separators=(',',':'))
 valid_pull=json.dumps({'ok':True,'graph':'bfixture','entity':'sheet:book:demo','attrs':valid_attrs},ensure_ascii=False,separators=(',',':'))
 files={}
-for name,value in [('sheets',meta),('grid',grid),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-meta',formula_meta),('formula-grid',formula_grid),('invalid','{"A":[]}'),('pull',pull),('bad-pull',bad_pull),('bad-empty',bad_empty),('bad-extra',bad_extra),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('invalid-pull',invalid_pull),('valid-pull',valid_pull),('near-pull',near_pull),('over-pull',over_pull)]:
+for name,value in [('sheets',meta),('grid',grid),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-meta',formula_meta),('formula-grid',formula_grid),('invalid','{"A":[]}'),('pull',pull),('untitled-pull',untitled_pull),('bad-pull',bad_pull),('bad-empty',bad_empty),('bad-extra',bad_extra),('hostile-pull',hostile_pull),('hostile-meta',hostile_meta),('hostile-grid',hostile_grid),('formula-grid',formula_grid),('wide-meta',wide_meta),('wide-grid',wide_grid),('wide-pull',wide_pull),('invalid-pull',invalid_pull),('valid-pull',valid_pull),('near-pull',near_pull),('over-pull',over_pull)]:
  files[name]=out/(name+'.json');files[name].write_text(value,encoding='utf-8')
 f=lambda s:str(len(s.encode()))+':'+s
 cell=lambda r,c,v:f(str(r))+f(str(c))+f(v)
@@ -64,6 +65,8 @@ book='HW3|'+f('予算')+f(provenance)+f(a)+f(b)
 expected='HU1|'+f(book)+f('n:0')+f('1')+f('1')
 pull_book='HW3|'+f('予算')+f('LE2|'+f(pull))+f(a)+f(b)
 pull_expected='HX1|2'+f(pull_book)+f('n:0')+f('1')+f('1')
+untitled_book='HW3|'+f('')+f('LE2|'+f(untitled_pull))+f(a)+f(b)
+untitled_expected='HX1|2'+f(untitled_book)+f('n:0')+f('1')+f('1')
 wide_source='LE1|'+f('Wide')+f(wide_meta)+f(wide_grid)
 wide_cells=''.join(cell(1,i,'1') for i in range(1,1025))
 wide_book='HW3|'+f('Wide')+f(wide_source)+f(f('n:0')+f('A')+wide_cells)
@@ -184,6 +187,26 @@ try:
  ev("document.getElementById('backup-confirm').click()");wait("document.getElementById('status').textContent.includes('復元しました')",'pull import')
  assert stored()==pull_expected
  export_source('pull',pull)
+ # An old server can omit a nil title. Preserve the raw pull and previous
+ # saved state while presenting an empty editable title.
+ prior_untitled=record('current')
+ choose('#legacy-pull',files['untitled-pull']);ev("document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('backup-dialog').open",'untitled pull preview')
+ if record('current')!=prior_untitled:raise ValueError('untitled preview changed state')
+ ev("document.getElementById('backup-cancel').click()")
+ if record('current')!=prior_untitled:raise ValueError('untitled cancel changed state')
+ choose('#legacy-pull',files['untitled-pull']);ev("document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('backup-dialog').open",'untitled pull confirm preview')
+ ev("document.getElementById('status').textContent='待機';document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent.includes('復元しました')",'untitled pull import')
+ if stored()!=untitled_expected or record('backup:'+str(prior_untitled['revision']).zfill(16))!=prior_untitled:
+  raise ValueError('untitled pull lost data or previous backup')
+ export_source('pull',untitled_pull)
+ choose('#legacy-pull',files['pull']);ev("document.getElementById('legacy-pull-preview').click()")
+ wait("document.getElementById('backup-dialog').open",'restore original pull preview')
+ ev("document.getElementById('status').textContent='待機';document.getElementById('backup-confirm').click()")
+ wait("document.getElementById('status').textContent.includes('復元しました')",'restore original pull')
+ if stored()!=pull_expected:raise ValueError('original pull restore failed')
  before=record('current')
  choose('#legacy-pull',files['valid-pull'])
  ev("document.getElementById('legacy-pull-preview').click()")
@@ -262,7 +285,7 @@ try:
  pipe.call('Target.closeTarget',{'targetId':other_target})
  requests=[event['params']['request']['url'] for event in pipe.events if event.get('method')=='Network.requestWillBeSent']
  if not requests or any(not url.startswith(base) for url in requests):raise ValueError('unexpected network request')
- report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-and-cardinality-refusal','hostile-pull-text-only','1024-column-two-file-and-pull-imports','near-limit-pull-restore-reload','over-limit-refusal','near-limit-edit-exact-offscreen-preserved','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
+ report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','untitled-pull-backup-and-exact-source','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-and-cardinality-refusal','hostile-pull-text-only','1024-column-two-file-and-pull-imports','near-limit-pull-restore-reload','over-limit-refusal','near-limit-edit-exact-offscreen-preserved','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
  (out/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(report['status'])
 finally:
  pipe.close();server.shutdown();server.server_close()

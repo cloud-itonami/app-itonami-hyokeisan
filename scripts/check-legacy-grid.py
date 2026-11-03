@@ -65,6 +65,11 @@ pull_book = 'HW3|' + frame('予算') + frame('LE2|' + frame(pull)) + frame(frame
 unicode_source_book = 'HW3|' + frame('予算') + frame('😀x') + frame(frame('n:0') + frame('A') + cells_a)
 malformed_source_book = 'HW3|' + frame('予算') + frame('LE1|1:x0:0:extra') + frame(frame('n:0') + frame('A') + cells_a)
 pull_candidate = 'HU1|' + frame(pull_book) + frame('n:0') + frame('1') + frame('1')
+untitled_obj = json.loads(pull)
+untitled_obj['attrs'].pop(':sheet/title')
+untitled_pull = json.dumps(untitled_obj, ensure_ascii=False, separators=(',', ':'))
+untitled_book = 'HW3|' + frame('') + frame('LE2|' + frame(untitled_pull)) + frame(frame('n:0') + frame('A') + cells_a) + frame(frame('s:b') + frame('B') + cells_b)
+untitled_candidate = 'HU1|' + frame(untitled_book) + frame('n:0') + frame('1') + frame('1')
 pull_info = 'LP1|' + frame('bfixture') + frame('sheet:book:demo') + frame('7')
 def altered_pull(change):
     value = json.loads(pull)
@@ -110,6 +115,7 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(legacy-grid-match-titles ' + literal(grid_object) + ' (option-value-of [:option :string] (legacy-metadata-titles ' + literal(metadata) + ') "bad")) ' + \
     '(string=? (option-value-of [:option :string] (legacy-workbook-candidate "予算" ' + literal(small_metadata) + ' ' + literal(small_grid) + ') "bad") ' + literal(candidate) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-pull-candidate ' + literal(pull) + ') "bad") ' + literal(pull_candidate) + ') ' + \
+    '(string=? (option-value-of [:option :string] (legacy-pull-candidate ' + literal(untitled_pull) + ') "bad") ' + literal(untitled_candidate) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-pull-info ' + literal(pull) + ') "bad") ' + literal(pull_info) + ') ' + \
     '(string=? (option-value-of [:option :string] (ui-legacy-part ' + literal(book) + ' "sheets") "bad") ' + literal(small_metadata) + ') ' + \
     '(string=? (option-value-of [:option :string] (ui-legacy-part ' + literal(pull_book) + ' "pull") "bad") ' + literal(pull) + ') ' + \
@@ -147,7 +153,9 @@ pull_cardinality_anchor = '(option-some?-of [:option :string] second)'
 if source.count(pull_cardinality_anchor) != 1: raise ValueError('pull cardinality mutation anchor changed')
 surrogate_anchor = '(not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 12))'
 if source.count(surrogate_anchor) != 1: raise ValueError('surrogate split mutation anchor changed')
-cases = [('grid', source, 0), ('buffer-fallback', source.replace(buffer_limit_anchor, '(if (>= next 8) -2', 1), 0), ('coordinate-mutant', source.replace(anchor, '(if (= (string-byte-length value) 0) "" (wf-cell col row value))', 1), 1),
+title_guard = '(and (option-some?-of [:option :string] title-raw) (not (option-some?-of [:option :string] title)))'
+if source.count(title_guard) != 1: raise ValueError('title guard mutation anchor changed')
+cases = [('title-guard-mutant', source.replace(title_guard, 'false', 1), 1), ('grid', source, 0), ('buffer-fallback', source.replace(buffer_limit_anchor, '(if (>= next 8) -2', 1), 0), ('coordinate-mutant', source.replace(anchor, '(if (= (string-byte-length value) 0) "" (wf-cell col row value))', 1), 1),
          ('title-count-mutant', source.replace(count_anchor, 'true', 1), 1),
          ('duplicate-id-mutant', source.replace(id_anchor, 'false', 1), 1),
          ('provenance-mutant', source.replace(provenance_anchor, '(wf-frame "")', 1), 1),
