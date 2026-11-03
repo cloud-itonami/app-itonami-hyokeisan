@@ -4,13 +4,16 @@
 ;; limit. This is an unconnected candidate, not an importer or release schema.
 (defn wf-frame [s :string] :string
   (string-concat (string-from-i64 (string-byte-length s)) (string-concat ":" s)))
+(defn wf-boundary-slice [s :string at :i64 end :i64 limit :i64] :i64
+  (cond (> at end) -1 (or (= at end) (>= at limit)) at
+        :else (let [c (string-code-point-at s at)
+                    width (cond (< c 128) 1 (< c 2048) 2 (< c 65536) 3 :else 4)]
+                (wf-boundary-slice s (+ at width) end limit))))
 (defn wf-boundary? [s :string i :i64 end :i64] :bool
   (loop [at i]
     (if (= at end) true
-      (if (> at end) false
-        (let [c (string-code-point-at s at)
-              w (cond (< c 128) 1 (< c 2048) 2 (< c 65536) 3 :else 4)]
-          (recur (+ at w)))))))
+      (let [next (arena-scope (wf-boundary-slice s at end (+ at 256)))]
+        (if (< next 0) false (recur next))))))
 ;; Frame positions are packed into one i64: 21 bits each. This avoids one
 ;; vector-table allocation for every field scanned during a bulk import.
 (defn wf-start [frame :i64] :i64 (if (< frame 0) -1 (rem frame 2097152)))
@@ -19,7 +22,7 @@
   (if (>= i n) -1
     (let [c (string-code-point-at s i)]
       (cond (= c 58) (let [start (+ i 1) end (+ start value)]
-                       (if (and (> digits 0) (<= value 1048576) (<= end n) (wf-boundary? s start end))
+                       (if (and (> digits 0) (<= value 1048576) (<= end n) (arena-scope (wf-boundary? s start end)))
                          (+ start (* end 2097152)) -1))
             (or (< c 48) (> c 57) (>= digits 7) (and zero (> digits 0))) -1
             :else (wf-header s (+ i 1) n (+ (* value 10) (- c 48)) (+ digits 1) (and (= digits 0) (= c 48)))))))
@@ -40,20 +43,27 @@
                 (if (or (< c 48) (> c 57)) -1 (recur (+ i 1) (+ (* value 10) (- c 48))))))))))))
 (defn wf-before? [r :i64 c :i64 r2 :i64 c2 :i64] :bool
   (or (< r r2) (and (= r r2) (< c c2))))
+;; Pack end offset, row and column into one nonnegative i64 so temporary
+;; frame parsing can be reclaimed after each cell. Bounds are checked first.
+(defn wf-cell-valid-step [s :string pos :i64 count :i64 last-r :i64 last-c :i64] :i64
+  (let [rf (wf-read s pos)]
+    (if (< (wf-start rf) 0) -1
+      (let [cf (wf-read s (wf-end rf))]
+        (if (< (wf-start cf) 0) -1
+          (let [vf (wf-read s (wf-end cf))]
+            (if (< (wf-start vf) 0) -1
+              (let [r (wf-number-frame s rf 1048576) c (wf-number-frame s cf 16384)]
+                (if (or (< r 1) (< c 1) (> (- (wf-end vf) (wf-start vf)) 65536)
+                        (and (> count 0) (not (wf-before? last-r last-c r c)))) -1
+                  (+ (* (wf-end vf) 68719476736) (* r 32768) c))))))))))
 (defn wf-valid-cells [s :string pos :i64 count :i64 last-r :i64 last-c :i64] :bool
   (loop [pos pos count count last-r last-r last-c last-c]
-   (if (= pos (string-byte-length s)) true
-    (if (>= count 65536) false
-      (let [rf (wf-read s pos)]
-        (if (< (wf-start rf) 0) false
-          (let [cf (wf-read s (wf-end rf))]
-            (if (< (wf-start cf) 0) false
-              (let [vf (wf-read s (wf-end cf))]
-                (if (< (wf-start vf) 0) false
-                  (let [r (wf-number-frame s rf 1048576) c (wf-number-frame s cf 16384)]
-                    (if (or (< r 1) (< c 1) (> (- (wf-end vf) (wf-start vf)) 65536)
-                            (and (> count 0) (not (wf-before? last-r last-c r c)))) false
-                      (recur (wf-end vf) (+ count 1) r c)))))))))))))
+    (if (= pos (string-byte-length s)) true
+      (if (>= count 65536) false
+        (let [next (arena-scope (wf-cell-valid-step s pos count last-r last-c))]
+          (if (< next 0) false
+            (recur (quot next 68719476736) (+ count 1)
+                   (quot (rem next 68719476736) 32768) (rem next 32768))))))))
 (defn wf-sheet-valid? [s :string] :bool
   (let [id (wf-read s 0)]
     (if (< (wf-start id) 0) false
@@ -142,14 +152,21 @@
   (if (not (wf-valid? raw)) (option-none-of [:option :string])
     (let [title (wf-read raw 4) original (wf-read raw (wf-end title))]
       (option-some-of [:option :string] (wf-text raw original)))))
+;; A found frame is nonnegative, -1 stops, and -2-end continues the scan.
+;; No temporary string or document may escape the scoped step.
+(defn wf-find-cell-step [sheet :string pos :i64 row :i64 col :i64] :i64
+  (let [rf (wf-read sheet pos) cf (wf-read sheet (wf-end rf)) vf (wf-read sheet (wf-end cf))
+        r (wf-number-frame sheet rf 1048576) c (wf-number-frame sheet cf 16384)]
+    (cond (and (= r row) (= c col)) vf
+          (wf-before? row col r c) -1
+          :else (- 0 (+ (wf-end vf) 2)))))
 (defn wf-find-cell [sheet :string pos :i64 row :i64 col :i64] [:option :string]
   (loop [pos pos]
-   (if (= pos (string-byte-length sheet)) (option-none-of [:option :string])
-    (let [rf (wf-read sheet pos) cf (wf-read sheet (wf-end rf)) vf (wf-read sheet (wf-end cf))
-          r (wf-number-frame sheet rf 1048576) c (wf-number-frame sheet cf 16384)]
-      (cond (and (= r row) (= c col)) (option-some-of [:option :string] (wf-text sheet vf))
-            (wf-before? row col r c) (option-none-of [:option :string])
-            :else (recur (wf-end vf)))))))
+    (if (= pos (string-byte-length sheet)) (option-none-of [:option :string])
+      (let [result (arena-scope (wf-find-cell-step sheet pos row col))]
+        (cond (>= result 0) (option-some-of [:option :string] (wf-text sheet result))
+              (= result -1) (option-none-of [:option :string])
+              :else (recur (- (- 0 result) 2)))))))
 (defn wf-find-sheet-cell [raw :string pos :i64 id :string row :i64 col :i64] [:option :string]
   (loop [pos pos]
    (if (= pos (string-byte-length raw)) (option-none-of [:option :string])

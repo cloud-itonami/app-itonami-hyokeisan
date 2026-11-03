@@ -129,7 +129,7 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(legacy-grid-match-titles "{}" "") (not (legacy-grid-match-titles "{}" "1:A")) ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-grid-find ' + literal(item) + ' "A")))' for item in bad_objects) + ' ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-grid-cells ' + literal(item) + ')))' for item in bad) + ') 0 1)))\n'
-anchor = '(string-concat acc (wf-cell row col value))'
+anchor = '(if (= (string-byte-length value) 0) "" (wf-cell row col value))'
 if source.count(anchor) != 1: raise ValueError('coordinate mutation anchor changed')
 count_anchor = '(string=? (string-from-i64 count) expected)'
 if source.count(count_anchor) != 1: raise ValueError('title-count mutation anchor changed')
@@ -141,11 +141,13 @@ pull_id_anchor = '(not (string=? e (option-value-of [:option :string] id "")))'
 if source.count(pull_id_anchor) != 1: raise ValueError('pull identity mutation anchor changed')
 pull_source_anchor = '(string-concat "LE2|" (wf-frame raw))'
 if source.count(pull_source_anchor) != 1: raise ValueError('pull provenance mutation anchor changed')
+buffer_limit_anchor = '(if (>= next 131072) -2'
+if source.count(buffer_limit_anchor) != 1: raise ValueError('buffer fallback mutation anchor changed')
 pull_cardinality_anchor = '(option-some?-of [:option :string] second)'
 if source.count(pull_cardinality_anchor) != 1: raise ValueError('pull cardinality mutation anchor changed')
 surrogate_anchor = '(not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 12))'
 if source.count(surrogate_anchor) != 1: raise ValueError('surrogate split mutation anchor changed')
-cases = [('grid', source, 0), ('coordinate-mutant', source.replace(anchor, '(string-concat acc (wf-cell col row value))', 1), 1),
+cases = [('grid', source, 0), ('buffer-fallback', source.replace(buffer_limit_anchor, '(if (>= next 8) -2', 1), 0), ('coordinate-mutant', source.replace(anchor, '(if (= (string-byte-length value) 0) "" (wf-cell col row value))', 1), 1),
          ('title-count-mutant', source.replace(count_anchor, 'true', 1), 1),
          ('duplicate-id-mutant', source.replace(id_anchor, 'false', 1), 1),
          ('provenance-mutant', source.replace(provenance_anchor, '(wf-frame "")', 1), 1),

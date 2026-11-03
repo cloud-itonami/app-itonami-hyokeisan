@@ -47,10 +47,10 @@
           (option-some-of [:option :string] (string-concat "LP1|" (string-concat (workbook/wf-frame g)
             (string-concat (workbook/wf-frame e) (workbook/wf-frame (option-value-of [:option :string] rev "")))))))))))
 (defn lp-preserve [state :string raw :string] [:option :string]
-  (let [parsed (ui/ui-read state)]
+  (let [parsed (ui/ui-read-lite state)]
     (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :string])
       (let [d (option-value-of [:option :document] parsed (document-null))
-            book (dstr (dget d :book)) id (dstr (dget d :id))
+            book (ui/ui-book state) id (dstr (dget d :id))
             title (workbook/wf-read book 4)
             source (string-concat "LE2|" (workbook/wf-frame raw))
             rebuilt (string-concat "HW3|" (string-concat (workbook/wf-frame (workbook/wf-text book title))

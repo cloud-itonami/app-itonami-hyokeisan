@@ -30,7 +30,7 @@
             (not (option-some?-of [:option :string] titles)) (> (string-byte-length title) 1024))
       (option-none-of [:option :string])
       (let [p (option-value-of [:option :string] pairs "") t (option-value-of [:option :string] titles "")]
-        (if (or (= (string-byte-length p) 0) (not (grid/legacy-grid-match-titles grid-json t)))
+        (if (or (= (string-byte-length p) 0) (not (arena-scope (grid/legacy-grid-match-titles grid-json t))))
           (option-none-of [:option :string])
           (let [raw-source (string-concat "LE1|" (string-concat (workbook/wf-frame title)
                              (string-concat (workbook/wf-frame sheets-json) (workbook/wf-frame grid-json))))

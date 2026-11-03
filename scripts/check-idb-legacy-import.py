@@ -73,6 +73,9 @@ wide_pull_expected='HU1|'+f(wide_pull_book)+f('n:0')+f('1')+f('1')
 near_cells=''.join(cell(1,i,'1') for i in range(1,1601))
 near_book='HW3|'+f('Wide')+f('LE2|'+f(near_pull))+f(f('n:0')+f('A')+near_cells)
 near_expected='HU1|'+f(near_book)+f('n:0')+f('1')+f('1')
+edited_cells=cell(1,1,'別タブの入力')+''.join(cell(1,i,'1') for i in range(2,1601))
+edited_book='HW3|'+f('Wide')+f('LE2|'+f(near_pull))+f(f('n:0')+f('A')+edited_cells)
+near_edited='HU1|'+f(edited_book)+f('n:0')+f('1')+f('1')
 if not 34000 < len(near_expected.encode()) <= 35000:raise ValueError('near-limit fixture size')
 try:
  target=pipe.call('Target.createTarget',{'url':'about:blank'})['targetId'];session=pipe.call('Target.attachToTarget',{'targetId':target,'flatten':True})['sessionId']
@@ -235,14 +238,14 @@ try:
  other_ev("document.getElementById('status').textContent='待機';(()=>{let e=document.querySelector('[data-k=c0]');e.value='別タブの入力';e.dispatchEvent(new Event('input',{bubbles:true}))})()")
  wait_other("document.getElementById('status').textContent==='保存しました'",'other tab did not save')
  winner=record('current')
- if winner['revision']<=before['revision'] or '別タブの入力' not in winner['value']:raise ValueError('other tab update missing')
+ if winner['revision']<=before['revision'] or winner['value']!=near_edited:raise ValueError('other tab update changed off-screen cells or provenance')
  ev("document.getElementById('status').textContent='待機';document.getElementById('backup-confirm').click()")
  wait("document.getElementById('status').textContent.includes('別のタブ') || document.getElementById('status').textContent.includes('復元しました')",'stale pull confirmation result')
  if not ev("document.getElementById('status').textContent.includes('別のタブ')") or record('current')!=winner or record(backup) is not None:raise ValueError('stale pull overwrote other tab or made a backup')
  pipe.call('Target.closeTarget',{'targetId':other_target})
  requests=[event['params']['request']['url'] for event in pipe.events if event.get('method')=='Network.requestWillBeSent']
  if not requests or any(not url.startswith(base) for url in requests):raise ValueError('unexpected network request')
- report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-and-cardinality-refusal','hostile-pull-text-only','near-limit-pull-restore-reload','over-limit-refusal','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
+ report={'status':'PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC','nearSnapshotBytes':len(near_expected.encode()),'nearCells':1600,'nearBackupVerified':True,'checks':['two-file-preview-formula-audit','preview-edit-race','audit-failure-refusal','hostile-and-bounded-formula-audit','backup-and-current-failure-rollback','malformed-long-pull-refused','atomic-confirm','source-export-exact','pull-preview-identity-formula-audit','pull-source-export-exact','second-sheet-formula-reload','missing-sheet-refusal','bad-identity-and-cardinality-refusal','hostile-pull-text-only','near-limit-pull-restore-reload','over-limit-refusal','near-limit-edit-exact-offscreen-preserved','stale-other-tab-pull-refusal','local-requests-only'],'scope':'synthetic data and Chrome loopback; source authority and real-user migration unverified'}
  (out/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(report['status'])
 finally:
  pipe.close();server.shutdown();server.server_close()

@@ -1,5 +1,5 @@
 (ns hyokeisan.workbook-ui
-  (:export [ui-from-hs1 ui-view ui-step])
+  (:export [ui-from-hs1 ui-view ui-step ui-read-lite ui-book])
   (:require [hyokeisan.sheet :as sheet]
             [hyokeisan.workbook :as workbook]
             [hyokeisan.migrate-hs1 :as migrate]
@@ -36,7 +36,7 @@
                                  (workbook/wf-frame (string-from-i64 left))))))]
       (if (<= (string-byte-length out) 35000) (option-some-of [:option :string] out)
         (option-none-of [:option :string])))))
-(defn ui-read [state :string] [:option :document]
+(defn ui-read-lite [state :string] [:option :document]
   (if (or (> (string-byte-length state) 35000) (not (ui-prefix? state))) (option-none-of [:option :document])
     (let [bf (workbook/wf-read state 4)]
       (if (< (workbook/wf-start bf) 0) (option-none-of [:option :document])
@@ -52,9 +52,23 @@
                       (if (and (workbook/wf-valid? raw) (>= (ui-sheet-index raw id) 0)
                                (>= top 1) (>= left 1) (= (rem (- top 1) 4) 0) (= (rem (- left 1) 4) 0))
                         (option-some-of [:option :document]
-                          (document-map :book (document-string raw) :id (document-string id)
+                          (document-map :id (document-string id)
                                         :top (document-i64 top) :left (document-i64 left)))
                         (option-none-of [:option :document])))))))))))))
+;; Callers still validate the full state with ui-read-lite before trusting it.
+(defn ui-book [state :string] :string
+  (if (not (ui-prefix? state)) ""
+    (let [f (workbook/wf-read state 4)]
+      (if (< (workbook/wf-start f) 0) "" (workbook/wf-text state f)))))
+;; Preserve the original public shape for callers that need the book in a
+;; document. UI operations use ui-read-lite to avoid serializing it repeatedly.
+(defn ui-read [state :string] [:option :document]
+  (let [parsed (ui-read-lite state)]
+    (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :document])
+      (let [p (option-value-of [:option :document] parsed (document-null))]
+        (option-some-of [:option :document]
+          (document-map :book (document-string (ui-book state))
+                        :id (sheet/dget p :id) :top (sheet/dget p :top) :left (sheet/dget p :left)))))))
 (defn ui-int [d :document] :i64
   (option-value-of [:option :i64] (document-i64-value d) -1))
 (defn ui-from-hs1 [raw :string] [:option :string]
@@ -77,10 +91,10 @@
           (if (option-some?-of [:option :string] next)
             (ui-wrap (option-value-of [:option :string] next "") id 1 1) (option-none-of [:option :string]))))))))
 (defn ui-step [state :string target :string kind :string value :string] [:option :string]
-  (let [parsed (ui-read state)]
+  (let [parsed (ui-read-lite state)]
     (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :string])
       (let [p (option-value-of [:option :document] parsed (document-null))
-            raw (sheet/dstr (sheet/dget p :book)) id (sheet/dstr (sheet/dget p :id))
+            raw (ui-book state) id (sheet/dstr (sheet/dget p :id))
             top (ui-int (sheet/dget p :top)) left (ui-int (sheet/dget p :left))
             index (sheet/key-index target 0)]
         (cond (and (string=? kind "input") (>= index 0) (<= (string-byte-length value) 128))
@@ -159,10 +173,10 @@
                 :aria-label (document-string (string-concat "セル " label)) :value (document-string text)) "")
               (sheet/leaf "span" (document-map :class (document-string "value")) display))))))))
 (defn ui-view [state :string] [:option :document]
-  (let [parsed (ui-read state)]
+  (let [parsed (ui-read-lite state)]
     (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :document])
       (let [p (option-value-of [:option :document] parsed (document-null))
-            raw (sheet/dstr (sheet/dget p :book)) id (sheet/dstr (sheet/dget p :id))
+            raw (ui-book state) id (sheet/dstr (sheet/dget p :id))
             top (ui-int (sheet/dget p :top)) left (ui-int (sheet/dget p :left))
             sheet-raw (option-value-of [:option :string] (ui-sheet-at raw (ui-sheet-index raw id)) "")
             idf (workbook/wf-read sheet-raw 0) namef (workbook/wf-read sheet-raw (workbook/wf-end idf))

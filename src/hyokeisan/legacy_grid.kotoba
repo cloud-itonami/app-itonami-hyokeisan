@@ -56,11 +56,66 @@
                             (cond (= d 93) (lg-after-row s (+ q 1) n row next)
                                   (= d 44) (lg-cells s (+ q 1) n row (+ col 1) next false)
                                   :else (option-none-of [:option :string]))))))))))))))
-(defn legacy-grid-cells [s :string] [:option :string]
+(defn legacy-grid-cells-old [s :string] [:option :string]
   (let [n (string-byte-length s) p (lg-space s 0 n)]
     (if (or (> n 35000) (>= p n)) (option-none-of [:option :string])
       (if (= (string-code-point-at s p) 91) (lg-rows s (+ p 1) n 1 "" true)
         (option-none-of [:option :string])))))
+
+;; Two-pass writer: -1 is invalid input; -2 uses the original writer when
+;; the output exceeds the temporary buffer's encoding bound.
+(defn lg-buf-copy [bytes :bytes src :i64 n :i64 out :vector-i64 dst :i64] :i64
+  (if (= src n) dst
+    (let [z (vector-assoc! out dst (bytes-at bytes src))]
+      (lg-buf-copy bytes (+ src 1) n out (+ dst 1)))))
+(defn lg-buf-one [s :string p :i64 n :i64 row :i64 col :i64 out :vector-i64 used :i64 write :bool] :i64
+  (let [end (lg-string-end s p n)]
+    (if (< end 0) -1
+      (let [parsed (js/json-unquote (string-substring s p end))]
+        (if (not (option-some?-of [:option :string] parsed)) -1
+          (let [value (option-value-of [:option :string] parsed "")
+                frame (if (= (string-byte-length value) 0) "" (workbook/wf-cell row col value))
+                len (string-byte-length frame) next (+ used len)]
+            (if (>= next 131072) -2
+              (let [z (if write (lg-buf-copy (string-to-utf8 frame) 0 len out used) next)]
+                (+ (* end 131072) next)))))))))
+(defn lg-buf-rows [s :string pos :i64 n :i64 row :i64 out :vector-i64 used :i64 write :bool first :bool] :i64
+  (let [p (lg-space s pos n)]
+    (if (>= p n) -1
+      (let [c (string-code-point-at s p)]
+        (cond (= c 93) (if (and first (= (lg-space s (+ p 1) n) n)) used -1)
+              (or (not= c 91) (> row 1048576)) -1
+              :else (lg-buf-cells s (+ p 1) n row 1 out used write true))))))
+(defn lg-buf-after-row [s :string pos :i64 n :i64 row :i64 out :vector-i64 used :i64 write :bool] :i64
+  (let [p (lg-space s pos n)]
+    (if (>= p n) -1
+      (let [c (string-code-point-at s p)]
+        (cond (= c 93) (if (= (lg-space s (+ p 1) n) n) used -1)
+              (= c 44) (lg-buf-rows s (+ p 1) n (+ row 1) out used write false)
+              :else -1)))))
+(defn lg-buf-cells [s :string pos :i64 n :i64 row :i64 col :i64 out :vector-i64 used :i64 write :bool first :bool] :i64
+  (let [p (lg-space s pos n)]
+    (if (>= p n) -1
+      (let [c (string-code-point-at s p)]
+        (cond (= c 93) (if first (lg-buf-after-row s (+ p 1) n row out used write) -1)
+              (or (not= c 34) (> col 16384)) -1
+              :else (let [entry (arena-scope (lg-buf-one s p n row col out used write))]
+                (if (< entry 0) entry
+                  (let [end (quot entry 131072) next (rem entry 131072) q (lg-space s end n)]
+                    (if (>= q n) -1
+                      (let [d (string-code-point-at s q)]
+                        (cond (= d 93) (lg-buf-after-row s (+ q 1) n row out next write)
+                              (= d 44) (lg-buf-cells s (+ q 1) n row (+ col 1) out next write false)
+                              :else -1)))))))))))
+(defn legacy-grid-cells [s :string] [:option :string]
+  (let [n (string-byte-length s) p (lg-space s 0 n)]
+    (if (or (> n 35000) (>= p n) (not (= (string-code-point-at s p) 91))) (option-none-of [:option :string])
+      (let [len (lg-buf-rows s (+ p 1) n 1 (vector-alloc 0) 0 false true)]
+        (cond (= len -2) (legacy-grid-cells-old s)
+              (< len 0) (option-none-of [:option :string])
+              :else (let [out (vector-alloc len) written (lg-buf-rows s (+ p 1) n 1 out 0 true true)]
+                      (if (not (= written len)) (option-none-of [:option :string])
+                        (option-some-of [:option :string] (string-from-utf8 (bytes-from-vector-i64 out))))))))))
 
 ;; Locate the complete matrix token without materializing a document vector.
 ;; Full syntax is subsequently checked by legacy-grid-cells, not this scan.
