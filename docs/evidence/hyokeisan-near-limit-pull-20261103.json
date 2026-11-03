@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-03",
+  "candidateReceipt": {
+    "wasmSha256": "fd30b0f30e12355ecfa6d357daf21dd28c1b8bbf9f9c5a939b3036fcc49f02a8",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "25920c2c14970924b09dee8600ff544f472ef7d8cf38d59557b2ffcea916892e",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab",
+    "draftPolicyRevision": "26da503693359e3e7d544b50b97cae1c5cf6041e",
+    "draftPolicySourceSha256": "8888ad0d88e8f954b5b1cd4fa0d3da62ac13e906f9410866cfd9dec6112f11f2",
+    "draftPolicyWasmSha256": "baa17f80e3ce7ce32b86086606168846454ca547842359251b50b911d4b89e42",
+    "didSha256": "4949be2174337d03be51a68e95eb014fab5062bd5e4371fd2110be28895449a9",
+    "storageRevision": "d569c4cc7e884c58dc5867c38731c9465bac70dc",
+    "transactionalStorageSha256": "3d83f73142bd053dadb82d23d8e220ee9f3490515568b048d95f2ac1954c5dcf",
+    "managedStorageSha256": "f48d45cedf89be861f1a3376e04ded9a19c2914e3cbd4756326b1799ab7a14c0"
+  },
+  "observerSha256": "040681ce15b78bb0b4b95a619c12a0b9ca46da9c269c27894ed8262c8caf8a02",
+  "result": {
+    "status": "PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC",
+    "nearSnapshotBytes": 34518,
+    "nearCells": 1600,
+    "nearBackupVerified": true,
+    "checks": [
+      "two-file-preview-formula-audit",
+      "atomic-confirm",
+      "source-export-exact",
+      "pull-preview-identity-formula-audit",
+      "pull-source-export-exact",
+      "near-limit-pull-restore-reload"
+    ],
+    "scope": "synthetic data and Chrome loopback; source authority and real-user migration unverified"
+  },
+  "receiptSha256": "8d734560784bdc2e7e3af970ebcd38c0c8b505d425e10f396b0a87c2e059f522",
+  "scope": "Synthetic 1600-cell pull fixture; exact pull/source identity, producer authority, real user migration, QEMU, power loss and deployment remain unverified."
+}

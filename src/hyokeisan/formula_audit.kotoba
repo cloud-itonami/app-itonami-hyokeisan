@@ -35,10 +35,10 @@
                (ui/ui-int (sheet/dget result :shown))
                (sheet/dstr (sheet/dget result :entries)))))))
 (defn formula-audit [state :string] [:option :string]
-  (let [parsed (ui/ui-read state)]
+  (let [parsed (ui/ui-read-lite state)]
     (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :string])
       (let [p (option-value-of [:option :document] parsed (document-null))
-            book (sheet/dstr (sheet/dget p :book))
+            book (ui/ui-book state)
             result (fa-sheets book (workbook/wf-sheet-start book) 0 0 "")
             count (ui/ui-int (sheet/dget result :count)) shown (ui/ui-int (sheet/dget result :shown))
             entries (sheet/dstr (sheet/dget result :entries))

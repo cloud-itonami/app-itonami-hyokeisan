@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-03",
+  "buildReceipt": {
+    "wasmSha256": "fd30b0f30e12355ecfa6d357daf21dd28c1b8bbf9f9c5a939b3036fcc49f02a8",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "25920c2c14970924b09dee8600ff544f472ef7d8cf38d59557b2ffcea916892e",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab",
+    "draftPolicyRevision": "26da503693359e3e7d544b50b97cae1c5cf6041e",
+    "draftPolicySourceSha256": "8888ad0d88e8f954b5b1cd4fa0d3da62ac13e906f9410866cfd9dec6112f11f2",
+    "draftPolicyWasmSha256": "baa17f80e3ce7ce32b86086606168846454ca547842359251b50b911d4b89e42",
+    "didSha256": "4949be2174337d03be51a68e95eb014fab5062bd5e4371fd2110be28895449a9",
+    "storageRevision": "d569c4cc7e884c58dc5867c38731c9465bac70dc",
+    "transactionalStorageSha256": "3d83f73142bd053dadb82d23d8e220ee9f3490515568b048d95f2ac1954c5dcf",
+    "managedStorageSha256": "f48d45cedf89be861f1a3376e04ded9a19c2914e3cbd4756326b1799ab7a14c0"
+  },
+  "observer": {
+    "repo": "cloud-itonami/app-itonami-bunsho",
+    "revision": "d569c4cc7e884c58dc5867c38731c9465bac70dc",
+    "path": "scripts/check-office-corrupt-recovery.py",
+    "sha256": "55e58d715bdc3ca402665a606d69bb762ec59c0caf571d3d250d1a7889ecca10"
+  },
+  "tests": {
+    "recovery": {
+      "sha256": "7c13a70bfa3d6d5a3dbe2361ea2042f8f96b0c47dd808a4896660f456d34dca6",
+      "result": {
+        "status": "PASS_CORRUPT_METADATA_RECOVERY",
+        "app": "hyokeisan",
+        "checks": [
+          "invalid-record-refused",
+          "surviving-text-exported",
+          "stored-record-unchanged",
+          "invalid-utf16-export-preserved"
+        ],
+        "scope": "synthetic Chromium loopback, damaged record metadata only; no physical crash or real user data"
+      }
+    },
+    "regression": {
+      "sha256": "4c250573199e720b0d988e1d3eda69e9ea6d6c7e0149175c7d94e85dab05ce3f",
+      "result": {
+        "status": "PASS_HYOKEISAN_IDB_UI_SYNTHETIC",
+        "checks": [
+          "new-document-save-reload",
+          "stale-tab-conflict-preserves-draft",
+          "stale-revision-draft-preview-only",
+          "backup-preview-and-atomic-restore",
+          "save-abort-reload-recover-draft-and-retry",
+          "legacy-session-draft-preview-only",
+          "restore-abort-rolls-back-backup",
+          "postcommit-restore-truthful-warning",
+          "postcommit-save-truthful-warning",
+          "legacy-preview-explicit-trusted-confirm",
+          "legacy-copy-and-old-backup-preserved",
+          "old-backup-preview",
+          "old-writer-divergence-freezes",
+          "unfinished-and-late-composition-journaled",
+          "both-divergent-branches-and-unsaved-draft-export",
+          "migration-keyboard-cancel-preserves",
+          "invalid-legacy-refusal",
+          "invalid-utf16-legacy-export",
+          "migration-preview-race-refusal",
+          "migration-transaction-abort",
+          "migration-postcommit-divergence-preserved"
+        ],
+        "scope": "synthetic Chrome loopback; no real user data, atomic cross-store coordination, crash/power-loss, QEMU or release"
+      }
+    }
+  },
+  "scope": "Synthetic Chrome and corrupt metadata; no deleted or inaccessible IndexedDB recovery, real-user data, QEMU or deployment."
+}

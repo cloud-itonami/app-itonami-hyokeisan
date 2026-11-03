@@ -28,7 +28,7 @@
 (defn jp-string [s :string i :i64 n :i64] :i64
   (let [end (jp-string-end s (+ i 1) n i)]
     (if (< end 0) -1
-      (if (option-some?-of [:option :string] (js/json-unquote (string-substring s i end))) end -1))))
+      (if (arena-scope (option-some?-of [:option :string] (js/json-unquote (string-substring s i end)))) end -1))))
 (defn jp-digit? [c :i64] :bool (and (>= c 48) (<= c 57)))
 (defn jp-digits [s :string i :i64 n :i64] :i64
   (loop [at i]

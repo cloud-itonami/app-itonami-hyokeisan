@@ -33,7 +33,11 @@ escaped_expected = ''.join(frame('1') + frame(str(c + 1)) + frame(v)
                            for c, v in enumerate(['雪😀', 'line\nnext', '"\\/']))
 long_text = ('a' * 31 + '😀' + '"\\\n' + '雪' * 8) * 100
 long_token = json.dumps(long_text, ensure_ascii=True)
-invalid_strings = ['"' + 'a' * 64 + '\\uD800"', '"' + 'a' * 65 + '"x"', '"' + 'a' * 80 + '雪']
+invalid_strings = ['"' + 'a' * 64 + '\\uD800"', '"' + 'a' * 65 + '"x"', '"' + 'a' * 80 + '雪',
+                   '"' + 'x' * 1024 + '\\q"', '"' + 'x' * 1024 + '\\uD800"',
+                   '"' + 'x' * 1024 + '\\uDC00"', '"' + 'x' * 1024 + '\\uD800\\u0041"']
+buffered_text = ('雪😀\n\t"\\/é' * 150) + '\x00'
+buffered_token = json.dumps(buffered_text, ensure_ascii=True)
 boundary_token = '"' + 'a' * 29 + '\\uD83D\\uDE00' + 'b' * 29 + '"'
 boundary_text = 'a' * 29 + '😀' + 'b' * 29
 grid_object = json.dumps({**{'Sheet' + str(i): [[str(i)]] for i in range(40)},
@@ -61,6 +65,11 @@ pull_book = 'HW3|' + frame('予算') + frame('LE2|' + frame(pull)) + frame(frame
 unicode_source_book = 'HW3|' + frame('予算') + frame('😀x') + frame(frame('n:0') + frame('A') + cells_a)
 malformed_source_book = 'HW3|' + frame('予算') + frame('LE1|1:x0:0:extra') + frame(frame('n:0') + frame('A') + cells_a)
 pull_candidate = 'HU1|' + frame(pull_book) + frame('n:0') + frame('1') + frame('1')
+untitled_obj = json.loads(pull)
+untitled_obj['attrs'].pop(':sheet/title')
+untitled_pull = json.dumps(untitled_obj, ensure_ascii=False, separators=(',', ':'))
+untitled_book = 'HW3|' + frame('') + frame('LE2|' + frame(untitled_pull)) + frame(frame('n:0') + frame('A') + cells_a) + frame(frame('s:b') + frame('B') + cells_b)
+untitled_candidate = 'HU1|' + frame(untitled_book) + frame('n:0') + frame('1') + frame('1')
 pull_info = 'LP1|' + frame('bfixture') + frame('sheet:book:demo') + frame('7')
 def altered_pull(change):
     value = json.loads(pull)
@@ -70,6 +79,9 @@ bad_pulls = [altered_pull(lambda x: x.update(entity='sheet:book:other')),
              altered_pull(lambda x: x['attrs'].update({':sheet/id': [edn('sheet:book:other')]})),
              altered_pull(lambda x: x['attrs'].pop(':sheet/gridJson')),
              altered_pull(lambda x: x['attrs'].update({':sheet/title': [edn('x'), edn('y')]})),
+             altered_pull(lambda x: x['attrs'].update({':sheet/title': []})),
+             altered_pull(lambda x: x['attrs'].update({':sheet/title': ['null']})),
+             altered_pull(lambda x: x['attrs'].update({':sheet/title': [edn('x'), 'null']})),
              altered_pull(lambda x: x['attrs'].update({':sheet/revision': ['-1']})),
              altered_pull(lambda x: x.update(ok=False)), '{"ok":true,"datoms":[]}']
 large_metadata = '[{"sheetId":0,"title":"A"}]'
@@ -94,6 +106,7 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(option-some?-of [:option :string] v) (string=? (option-value-of [:option :string] v "") ' + literal(expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-cells ' + literal(escaped) + ') "bad") ' + literal(escaped_expected) + ') ' + \
     '(string=? (option-value-of [:option :string] (json-unquote ' + literal(long_token) + ') "bad") ' + literal(long_text) + ') ' + \
+    '(string=? (option-value-of [:option :string] (json-unquote ' + literal(buffered_token) + ') "bad") ' + literal(buffered_text) + ') ' + \
     '(string=? (option-value-of [:option :string] (json-unquote ' + literal(boundary_token) + ') "bad") ' + literal(boundary_text) + ') ' + \
     ' '.join('(not (option-some?-of [:option :string] (json-unquote ' + literal(item) + ')))' for item in invalid_strings) + ' ' + \
     '(string=? (option-value-of [:option :string] (legacy-grid-find ' + literal(grid_object) + ' "予算!") "bad") ' + literal(object_expected) + ') ' + \
@@ -102,6 +115,7 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(legacy-grid-match-titles ' + literal(grid_object) + ' (option-value-of [:option :string] (legacy-metadata-titles ' + literal(metadata) + ') "bad")) ' + \
     '(string=? (option-value-of [:option :string] (legacy-workbook-candidate "予算" ' + literal(small_metadata) + ' ' + literal(small_grid) + ') "bad") ' + literal(candidate) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-pull-candidate ' + literal(pull) + ') "bad") ' + literal(pull_candidate) + ') ' + \
+    '(string=? (option-value-of [:option :string] (legacy-pull-candidate ' + literal(untitled_pull) + ') "bad") ' + literal(untitled_candidate) + ') ' + \
     '(string=? (option-value-of [:option :string] (legacy-pull-info ' + literal(pull) + ') "bad") ' + literal(pull_info) + ') ' + \
     '(string=? (option-value-of [:option :string] (ui-legacy-part ' + literal(book) + ' "sheets") "bad") ' + literal(small_metadata) + ') ' + \
     '(string=? (option-value-of [:option :string] (ui-legacy-part ' + literal(pull_book) + ' "pull") "bad") ' + literal(pull) + ') ' + \
@@ -121,7 +135,7 @@ fixture = '\n(defn main [] :i64\n (let [v (legacy-grid-cells ' + literal(raw) + 
     '(legacy-grid-match-titles "{}" "") (not (legacy-grid-match-titles "{}" "1:A")) ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-grid-find ' + literal(item) + ' "A")))' for item in bad_objects) + ' ' + \
     ' '.join('(not (option-some?-of [:option :string] (legacy-grid-cells ' + literal(item) + ')))' for item in bad) + ') 0 1)))\n'
-anchor = '(string-concat acc (wf-cell row col value))'
+anchor = '(if (= (string-byte-length value) 0) "" (wf-cell row col value))'
 if source.count(anchor) != 1: raise ValueError('coordinate mutation anchor changed')
 count_anchor = '(string=? (string-from-i64 count) expected)'
 if source.count(count_anchor) != 1: raise ValueError('title-count mutation anchor changed')
@@ -133,14 +147,21 @@ pull_id_anchor = '(not (string=? e (option-value-of [:option :string] id "")))'
 if source.count(pull_id_anchor) != 1: raise ValueError('pull identity mutation anchor changed')
 pull_source_anchor = '(string-concat "LE2|" (wf-frame raw))'
 if source.count(pull_source_anchor) != 1: raise ValueError('pull provenance mutation anchor changed')
+buffer_limit_anchor = '(if (>= next 131072) -2'
+if source.count(buffer_limit_anchor) != 1: raise ValueError('buffer fallback mutation anchor changed')
+pull_cardinality_anchor = '(option-some?-of [:option :string] second)'
+if source.count(pull_cardinality_anchor) != 1: raise ValueError('pull cardinality mutation anchor changed')
 surrogate_anchor = '(not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 12))'
 if source.count(surrogate_anchor) != 1: raise ValueError('surrogate split mutation anchor changed')
-cases = [('grid', source, 0), ('coordinate-mutant', source.replace(anchor, '(string-concat acc (wf-cell col row value))', 1), 1),
+title_guard = '(and (option-some?-of [:option :string] title-raw) (not (option-some?-of [:option :string] title)))'
+if source.count(title_guard) != 1: raise ValueError('title guard mutation anchor changed')
+cases = [('title-guard-mutant', source.replace(title_guard, 'false', 1), 1), ('grid', source, 0), ('buffer-fallback', source.replace(buffer_limit_anchor, '(if (>= next 8) -2', 1), 0), ('coordinate-mutant', source.replace(anchor, '(if (= (string-byte-length value) 0) "" (wf-cell col row value))', 1), 1),
          ('title-count-mutant', source.replace(count_anchor, 'true', 1), 1),
          ('duplicate-id-mutant', source.replace(id_anchor, 'false', 1), 1),
          ('provenance-mutant', source.replace(provenance_anchor, '(wf-frame "")', 1), 1),
          ('pull-id-mutant', source.replace(pull_id_anchor, 'false', 1), 1),
          ('pull-source-mutant', source.replace(pull_source_anchor, '(string-concat "LE2|" (wf-frame ""))', 1), 1),
+         ('pull-cardinality-mutant', source.replace(pull_cardinality_anchor, 'false', 1), 1),
          ('surrogate-split-mutant', source.replace(surrogate_anchor, '(not (= (string-code-point-at s (+ p 7)) 117))) -1 (+ p 6))', 1), 1)]
 
 def load(name, path):

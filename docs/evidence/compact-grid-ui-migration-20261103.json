@@ -1,0 +1,266 @@
+{
+  "date": "2026-11-03",
+  "status": "PASS_COMPACT_HYOKEISAN_SYNTHETIC_MIGRATION_UI",
+  "baseHead": "cf416f2",
+  "sources": {
+    "src/hyokeisan/legacy_grid.kotoba": "b71d6cda2cfb0252faf936c7e4672153e921d070837acdd07e1981aa5f47ea80",
+    "src/hyokeisan/legacy_workbook.kotoba": "6b4c3b9f7fb980fb60ff8faf343ebb425055731d9c6db15cfc1eef424948505c",
+    "src/hyokeisan/workbook.kotoba": "a2f3db9f12598911cd9b53b92649b647fee3bd31f0d02d850945c6d3b740b80a",
+    "src/hyokeisan/workbook_ui.kotoba": "6f2da72bf3a59783f11a489897601cbbe59cc288cb391c23dce2dac7ee1d90bf",
+    "src/hyokeisan/formula_audit.kotoba": "e2e64932ef4f2447e254124b97a63581fbf9419c2ccfb52c12336c0c24466fea",
+    "src/hyokeisan/legacy_pull.kotoba": "79de83e9224768d3a70832f983444e9c2c8afee05f904ffdccbd55be7d5cd9e8",
+    "src/hyokeisan/browser-entry.kotoba": "258960578a84086b87d383eefd9c6f70236831019aea8ea666419cdcd46f8c16",
+    "scripts/browser_source.py": "8a84630a762b1bb693a196771bb3e48ca07de21841ada74c90e6b37debfae35b",
+    "scripts/check-legacy-grid.py": "72b130eb1211a28ab405d09b24431099a4f4354112836ae35283ef42c61bebe8",
+    "scripts/check-idb-legacy-import.py": "79276a4b6c249fe8e5d5622f14e57f792bcccd85e8f45b4a5e5e168b1304ec70"
+  },
+  "normalBuild": {
+    "wasmSha256": "1d496629211de9b299428bd3a1f4137b5a58692fc3e088a35a88443f8f0fa996",
+    "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+    "sourceSha256": "378e9f802a309fc10b5f015afd80118b0bc6a10a8c2a269958d666fdd734d5e8",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab",
+    "draftPolicyRevision": "26da503693359e3e7d544b50b97cae1c5cf6041e",
+    "draftPolicySourceSha256": "8888ad0d88e8f954b5b1cd4fa0d3da62ac13e906f9410866cfd9dec6112f11f2",
+    "draftPolicyWasmSha256": "baa17f80e3ce7ce32b86086606168846454ca547842359251b50b911d4b89e42",
+    "didSha256": "4949be2174337d03be51a68e95eb014fab5062bd5e4371fd2110be28895449a9",
+    "storageRevision": "d569c4cc7e884c58dc5867c38731c9465bac70dc",
+    "transactionalStorageSha256": "3d83f73142bd053dadb82d23d8e220ee9f3490515568b048d95f2ac1954c5dcf",
+    "managedStorageSha256": "f48d45cedf89be861f1a3376e04ded9a19c2914e3cbd4756326b1799ab7a14c0"
+  },
+  "experimentalCompactBuild": {
+    "wasmSha256": "a4a17b9a4b2b0ab4e3598aaf92fc5431d68fdec17ad804100adcd429116859de",
+    "compilerSha256": "3c63cc6c8c4641bf971173e8baa7596326f6e992d23e1b965df6fff4d4041b63",
+    "sourceSha256": "378e9f802a309fc10b5f015afd80118b0bc6a10a8c2a269958d666fdd734d5e8",
+    "brokerRevision": "e00ae75e1c589f76b4f53a88a5e3256c98c9e162",
+    "brokerSha256": "7f760128c3a58098123c31ec3dd34b9c871932e3933f2c952facc4ab0e647212",
+    "workerSha256": "58d606d0b3f22766a1b7288fe911c106aea9606fecfe59a2adb66a4bac8923ab",
+    "draftPolicyRevision": "26da503693359e3e7d544b50b97cae1c5cf6041e",
+    "draftPolicySourceSha256": "8888ad0d88e8f954b5b1cd4fa0d3da62ac13e906f9410866cfd9dec6112f11f2",
+    "draftPolicyWasmSha256": "4445640523256dcbbb4e40922df0fbca1e6faacce020b8743fc0d3bb15ca4872",
+    "didSha256": "4949be2174337d03be51a68e95eb014fab5062bd5e4371fd2110be28895449a9",
+    "storageRevision": "d569c4cc7e884c58dc5867c38731c9465bac70dc",
+    "transactionalStorageSha256": "3d83f73142bd053dadb82d23d8e220ee9f3490515568b048d95f2ac1954c5dcf",
+    "managedStorageSha256": "f48d45cedf89be861f1a3376e04ded9a19c2914e3cbd4756326b1799ab7a14c0"
+  },
+  "compactProfile": {
+    "linearBytes": 7536640,
+    "poolBytes": 4194304,
+    "pairs": 65536,
+    "vectors": 8192,
+    "vectorItems": 131072,
+    "qualification": "temporary instrumented Wasm profile; not an Itonami OS user-memory allocation"
+  },
+  "compactIdb": {
+    "status": "PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC",
+    "nearSnapshotBytes": 34518,
+    "nearCells": 1600,
+    "nearBackupVerified": true,
+    "checks": [
+      "two-file-preview-formula-audit",
+      "preview-edit-race",
+      "audit-failure-refusal",
+      "hostile-and-bounded-formula-audit",
+      "backup-and-current-failure-rollback",
+      "malformed-long-pull-refused",
+      "atomic-confirm",
+      "source-export-exact",
+      "pull-preview-identity-formula-audit",
+      "pull-source-export-exact",
+      "second-sheet-formula-reload",
+      "missing-sheet-refusal",
+      "bad-identity-and-cardinality-refusal",
+      "hostile-pull-text-only",
+      "near-limit-pull-restore-reload",
+      "over-limit-refusal",
+      "stale-other-tab-pull-refusal",
+      "local-requests-only"
+    ],
+    "scope": "synthetic data and Chrome loopback; source authority and real-user migration unverified"
+  },
+  "compactUi": {
+    "status": "PASS_HYOKEISAN_IDB_UI_SYNTHETIC",
+    "checks": [
+      "new-document-save-reload",
+      "stale-tab-conflict-preserves-draft",
+      "stale-revision-draft-preview-only",
+      "backup-preview-and-atomic-restore",
+      "save-abort-reload-recover-draft-and-retry",
+      "legacy-session-draft-preview-only",
+      "restore-abort-rolls-back-backup",
+      "postcommit-restore-truthful-warning",
+      "postcommit-save-truthful-warning",
+      "legacy-preview-explicit-trusted-confirm",
+      "legacy-copy-and-old-backup-preserved",
+      "old-backup-preview",
+      "old-writer-divergence-freezes",
+      "unfinished-and-late-composition-journaled",
+      "both-divergent-branches-and-unsaved-draft-export",
+      "migration-keyboard-cancel-preserves",
+      "invalid-legacy-refusal",
+      "invalid-utf16-legacy-export",
+      "migration-preview-race-refusal",
+      "migration-transaction-abort",
+      "migration-postcommit-divergence-preserved"
+    ],
+    "scope": "synthetic Chrome loopback; no real user data, atomic cross-store coordination, crash/power-loss, QEMU or release"
+  },
+  "nearPipelineMetrics": {
+    "info": {
+      "exit": 0,
+      "report": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24601124}}",
+      "stderr": "",
+      "arena": {
+        "linearBytes": 7536640,
+        "pairs": 4065,
+        "poolBytes": 27045,
+        "vectors": 14,
+        "items": 8,
+        "regions": 0,
+        "keywordRows": 0,
+        "peakPairs": 4065,
+        "peakPoolBytes": 35661,
+        "peakVectors": 28,
+        "peakItems": 19226,
+        "peakRegions": 0,
+        "peakKeywordRows": 0
+      },
+      "outputSha256": "994f1c285087388b9e6ef8c4dd9a0edd5f6f12b24035808e2a82ff9f9c130fff",
+      "outputBytes": 36
+    },
+    "view": {
+      "exit": 0,
+      "report": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 21037951}}",
+      "stderr": "",
+      "arena": {
+        "linearBytes": 7536640,
+        "pairs": 15552,
+        "poolBytes": 350290,
+        "vectors": 3172,
+        "items": 1610,
+        "regions": 0,
+        "keywordRows": 0,
+        "peakPairs": 15552,
+        "peakPoolBytes": 350290,
+        "peakVectors": 3172,
+        "peakItems": 1610,
+        "peakRegions": 0,
+        "peakKeywordRows": 0
+      },
+      "outputSha256": "be9e1f364d5373446b56c7687642e931b50b6fa912b3c0fd8c2ac345a670c988",
+      "outputBytes": 3008
+    },
+    "audit": {
+      "exit": 0,
+      "report": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24714680}}",
+      "stderr": "",
+      "arena": {
+        "linearBytes": 7536640,
+        "pairs": 1938,
+        "poolBytes": 34918,
+        "vectors": 40,
+        "items": 20,
+        "regions": 0,
+        "keywordRows": 0,
+        "peakPairs": 1938,
+        "peakPoolBytes": 34918,
+        "peakVectors": 40,
+        "peakItems": 20,
+        "peakRegions": 0,
+        "peakKeywordRows": 0
+      },
+      "outputSha256": "192640f8758234127549ec3bcfee245044019ec44a0c4ac2bfcdb06fc0086dc4",
+      "outputBytes": 11
+    }
+  },
+  "oldNormalCompactParity": {
+    "near": {
+      "view": {
+        "outputSha256": "be9e1f364d5373446b56c7687642e931b50b6fa912b3c0fd8c2ac345a670c988",
+        "bytes": 3008,
+        "reports": {
+          "old": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 19678056}}",
+          "normal": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 21037951}}",
+          "compact": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 21037951}}"
+        }
+      },
+      "formula-audit": {
+        "outputSha256": "192640f8758234127549ec3bcfee245044019ec44a0c4ac2bfcdb06fc0086dc4",
+        "bytes": 11,
+        "reports": {
+          "old": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 23317049}}",
+          "normal": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24714680}}",
+          "compact": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24714680}}"
+        }
+      }
+    },
+    "unicode": {
+      "view": {
+        "outputSha256": "21dd3c7527eafb1872eb74557c27d5ddcfebea878c0092250bc50f528f4251f7",
+        "bytes": 3019,
+        "reports": {
+          "old": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 22584909}}",
+          "normal": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 22614385}}",
+          "compact": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 22614385}}"
+        }
+      },
+      "formula-audit": {
+        "outputSha256": "aca7a0bbb4cb9283f6e9a5ae5f2e3d61a299aca00358dcc163c5e515538508ae",
+        "bytes": 47,
+        "reports": {
+          "old": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24951624}}",
+          "normal": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24979678}}",
+          "compact": "{:status :ok :result 0 :fuel {:initial 25000000 :remaining 24979678}}"
+        }
+      }
+    }
+  },
+  "gridDifferential": {
+    "status": "PASS_COMPACT_GRID_DIFFERENTIAL",
+    "cases": 45,
+    "largeRows": [
+      1024,
+      1600
+    ]
+  },
+  "legacyUiReadParity": {
+    "status": "PASS_UI_READ_OLD_NEW",
+    "cases": [
+      "old-near-view",
+      "old-unicode-view",
+      "bad-empty",
+      "bad-frame",
+      "bad-huge",
+      "bad-suffix"
+    ]
+  },
+  "nativeLinkedHost": {
+    "status": "PASS_HYOKEISAN_LINKED_HOST",
+    "evidenceSha256": "96d7acc39d4597289be478c413cd6240412eb8a2e5ba969a8f8752eb17a4634c",
+    "scope": "synthetic macOS ARM native execution; no OS GUI or QEMU"
+  },
+  "legacyGridGate": {
+    "compilerSha256": "971c25c7b221c51d584279d90b6d32c7bb783aa813aedac6614ecf67c4915f62",
+    "controls": [
+      "grid",
+      "buffer-fallback",
+      "coordinate-mutant",
+      "title-count-mutant",
+      "duplicate-id-mutant",
+      "provenance-mutant",
+      "pull-id-mutant",
+      "pull-source-mutant",
+      "pull-cardinality-mutant",
+      "surrogate-split-mutant"
+    ],
+    "commentOnlySourceChange": "Wasm module byte-identical after source comment updates"
+  },
+  "notes": [
+    "The near-limit synthetic pull is 1600 cells and its saved snapshot is 34518 bytes. A later edit is compared byte-for-byte against an independent expected snapshot retaining every other cell and original provenance.",
+    "UI and migration tests used byte-identical binaries before and after source-comment updates; exact current source was rebuilt and the native linked-host gate rerun.",
+    "One bounded input and synthetic cases do not prove the profile fits every valid document.",
+    "Bunsho, Zuhyo, actual OS user-mode runtime, QEMU app execution, real user data and public delivery remain outside this evidence.",
+    "Strict IndexedDB durability is requested, but crash/power-loss survival is not proven."
+  ]
+}

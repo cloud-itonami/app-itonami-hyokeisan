@@ -30,7 +30,7 @@
   (let [unpacked (browser-unpack raw)]
     (if (not (option-some?-of [:option :string] unpacked)) (option-none-of [:option :string])
       (let [v (option-value-of [:option :string] unpacked "")]
-        (if (if (ui-prefix? v) (option-some?-of [:option :document] (ui-read v))
+        (if (if (ui-prefix? v) (option-some?-of [:option :document] (ui-read-lite v))
               (option-some?-of [:option :document] (snap-decode v)))
           (browser-wrap (option-some-of [:option :string] v)) (option-none-of [:option :string]))))))
 
@@ -106,9 +106,9 @@
         (let [raw (browser-arg "1") unpacked (if (> (string-byte-length raw) 35000)
                         (option-none-of [:option :string]) (browser-unpack raw))
               parsed (if (option-some?-of [:option :string] unpacked)
-                       (ui-read (option-value-of [:option :string] unpacked "")) (option-none-of [:option :document]))]
+                       (ui-read-lite (option-value-of [:option :string] unpacked "")) (option-none-of [:option :document]))]
           (if (option-some?-of [:option :document] parsed)
-            (browser-emit-wire (ui-legacy-part (dstr (dget (option-value-of [:option :document] parsed (document-null)) :book)) (browser-arg "2")))
+            (browser-emit-wire (ui-legacy-part (ui-book (option-value-of [:option :string] unpacked "")) (browser-arg "2")))
             3))
       (and (string=? argc "5") (string=? op "step"))
         (let [raw (browser-arg "1") target (browser-arg "2")

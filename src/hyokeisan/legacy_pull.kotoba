@@ -19,13 +19,12 @@
 (defn lp-attribute [attrs :string name :string] [:option :string]
   (let [v (json/json-object-field attrs name)]
     (if (not (option-some?-of [:option :string] v)) (option-none-of [:option :string])
-      (let [items (json/json-array-tokens (option-value-of [:option :string] v ""))]
-        (if (or (not (option-some?-of [:option :document] items))
-                (not (= (document-count (option-value-of [:option :document] items (document-vector))) 1)))
+      (let [array (option-value-of [:option :string] v "")
+            first (json/json-array-item array 0) second (json/json-array-item array 1)]
+        (if (or (not (option-some?-of [:option :string] first))
+                (option-some?-of [:option :string] second))
           (option-none-of [:option :string])
-          (let [token (option-value-of [:option :document]
-                        (document-vector-at (option-value-of [:option :document] items (document-vector)) 0) (document-null))]
-            (js/json-unquote (option-value-of [:option :string] (document-string-value token) ""))))))))
+          (js/json-unquote (option-value-of [:option :string] first "")))))))
 (defn lp-attribute-text [attrs :string name :string] [:option :string]
   (let [edn (lp-attribute attrs name)]
     (if (option-some?-of [:option :string] edn)
@@ -48,10 +47,10 @@
           (option-some-of [:option :string] (string-concat "LP1|" (string-concat (workbook/wf-frame g)
             (string-concat (workbook/wf-frame e) (workbook/wf-frame (option-value-of [:option :string] rev "")))))))))))
 (defn lp-preserve [state :string raw :string] [:option :string]
-  (let [parsed (ui/ui-read state)]
+  (let [parsed (ui/ui-read-lite state)]
     (if (not (option-some?-of [:option :document] parsed)) (option-none-of [:option :string])
       (let [d (option-value-of [:option :document] parsed (document-null))
-            book (dstr (dget d :book)) id (dstr (dget d :id))
+            book (ui/ui-book state) id (dstr (dget d :id))
             title (workbook/wf-read book 4)
             source (string-concat "LE2|" (workbook/wf-frame raw))
             rebuilt (string-concat "HW3|" (string-concat (workbook/wf-frame (workbook/wf-text book title))
@@ -68,11 +67,13 @@
       (let [g (option-value-of [:option :string] graph "") e (option-value-of [:option :string] entity "")
             a (option-value-of [:option :string] attrs "") kind (lp-attribute-text a ":sheet/type")
             id (lp-attribute-text a ":sheet/id") slug (lp-attribute-text a ":sheet/slug")
+            title-raw (json/json-object-field a ":sheet/title")
             title (lp-attribute-text a ":sheet/title") sheets (lp-attribute-text a ":sheet/sheetsJson")
             grid (lp-attribute-text a ":sheet/gridJson") revision (lp-attribute a ":sheet/revision")]
         (if (or (= (string-byte-length g) 0) (> (string-byte-length g) 1024)
                 (not (option-some?-of [:option :string] kind)) (not (option-some?-of [:option :string] id))
-                (not (option-some?-of [:option :string] slug)) (not (option-some?-of [:option :string] title))
+                (not (option-some?-of [:option :string] slug))
+                (and (option-some?-of [:option :string] title-raw) (not (option-some?-of [:option :string] title)))
                 (not (option-some?-of [:option :string] sheets)) (not (option-some?-of [:option :string] grid))
                 (not (option-some?-of [:option :string] revision))) (option-none-of [:option :string])
           (let [name (option-value-of [:option :string] slug "")]

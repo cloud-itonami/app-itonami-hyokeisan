@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-03",
+  "status": "PASS_LEGACY_IMPORT_IDB_AUDIT_AND_TRANSACTION_FAULTS",
+  "sourceCommitBeforeTest": "44734f52ddbba06a77db55bca2789cfdd557157e",
+  "testSha256": "998de6a36b75b599a2a27e65b8ceb4efdc5fd0aa89acf481255ab2b1dfcdcd6a",
+  "wasmSha256": "707544cacd734d4739320635affe993b9f464cc0d84f9d996296306df260b7fa",
+  "compilerSha256": "2c551579c06a0228029bb06bae177e93126ecbbc37d636d693c471dbac8d1536",
+  "storageRevision": "d569c4cc7e884c58dc5867c38731c9465bac70dc",
+  "browser": "Chrome 156 on macOS ARM, loopback",
+  "test": {
+    "status": "PASS_HYOKEISAN_IDB_LEGACY_SYNTHETIC",
+    "nearSnapshotBytes": 34518,
+    "nearCells": 1600,
+    "nearBackupVerified": true,
+    "checks": [
+      "two-file-preview-formula-audit",
+      "preview-edit-race",
+      "audit-failure-refusal",
+      "hostile-and-bounded-formula-audit",
+      "backup-and-current-failure-rollback",
+      "malformed-long-pull-refused",
+      "atomic-confirm",
+      "source-export-exact",
+      "pull-preview-identity-formula-audit",
+      "pull-source-export-exact",
+      "near-limit-pull-restore-reload"
+    ],
+    "scope": "synthetic data and Chrome loopback; source authority and real-user migration unverified"
+  },
+  "negativeControl": {
+    "mutation": "omit the IDB transaction abort on exception",
+    "outcome": "test rejected a put failure that left an orphaned backup",
+    "exit": 1
+  },
+  "scope": [
+    "Synthetic local data only; no real source authorization or migration.",
+    "Faults are injected JavaScript exceptions and do not establish power-loss durability.",
+    "This transfers specific prior legacy harness checks; the remaining old localStorage harness has not been fully ported.",
+    "No QEMU, production deployment or release cutover."
+  ]
+}
